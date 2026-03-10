@@ -3,6 +3,6 @@ builder = "NIXPACKS"
 buildCommand = "npm install && prisma generate && next build"
 
 [deploy]
-startCommand = "prisma migrate deploy && next start"
+startCommand = "prisma migrate deploy && next start -p ${PORT:-3000}"
 healthcheckPath = "/"
 restartPolicyType = "ON_FAILURE"
