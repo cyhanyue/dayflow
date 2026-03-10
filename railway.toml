@@ -1,0 +1,8 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm install && prisma generate && prisma migrate deploy && next build"
+
+[deploy]
+startCommand = "next start"
+healthcheckPath = "/"
+restartPolicyType = "ON_FAILURE"
