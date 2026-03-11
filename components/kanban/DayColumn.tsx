@@ -21,6 +21,7 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
   const { addTask } = useAppStore()
   const [addingTask, setAddingTask] = useState(false)
   const [newTitle, setNewTitle] = useState('')
+  const [newMinutes, setNewMinutes] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const today = isToday(date)
@@ -33,18 +34,28 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
     if (addingTask) inputRef.current?.focus()
   }, [addingTask])
 
+  function cancel() {
+    setAddingTask(false)
+    setNewTitle('')
+    setNewMinutes('')
+  }
+
   async function handleAddTask(e?: React.FormEvent) {
     e?.preventDefault()
-    if (!newTitle.trim()) { setAddingTask(false); return }
+    if (!newTitle.trim()) { cancel(); return }
     const res = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: newTitle.trim(), scheduledDate: dateStr, sortOrder: tasks.length }),
+      body: JSON.stringify({
+        title: newTitle.trim(),
+        scheduledDate: dateStr,
+        sortOrder: tasks.length,
+        plannedTimeMinutes: newMinutes ? parseInt(newMinutes) : null,
+      }),
     })
     const task: Task = await res.json()
     addTask(task)
-    setNewTitle('')
-    setAddingTask(false)
+    cancel()
   }
 
   return (
@@ -71,7 +82,6 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
             <span className="text-xs text-stone-400">{minutesToHours(plannedMinutes)}</span>
           )}
         </div>
-        {/* Progress bar */}
         <div className="h-1 bg-stone-100 dark:bg-stone-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-indigo-500 rounded-full transition-all duration-300"
@@ -94,18 +104,40 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
           )}
         </SortableContext>
 
-        {/* Add task */}
+        {/* Add task form */}
         {addingTask ? (
-          <form onSubmit={handleAddTask} className="mt-1">
+          <form onSubmit={handleAddTask} className="mt-1 space-y-1">
             <input
               ref={inputRef}
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
-              onBlur={handleAddTask}
-              onKeyDown={e => e.key === 'Escape' && (setAddingTask(false), setNewTitle(''))}
+              onKeyDown={e => e.key === 'Escape' && cancel()}
               placeholder="Task name…"
               className="w-full text-sm px-2 py-1.5 rounded border border-indigo-400 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none"
             />
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                min={1}
+                value={newMinutes}
+                onChange={e => setNewMinutes(e.target.value)}
+                placeholder="Est. mins (optional)"
+                className="flex-1 text-xs px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-400 focus:outline-none focus:border-indigo-400"
+              />
+              <button
+                type="submit"
+                className="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={cancel}
+                className="text-xs px-2 py-1 text-stone-400 hover:text-stone-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
           </form>
         ) : (
           <button
