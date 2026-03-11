@@ -9,6 +9,22 @@ import { cn, minutesToHours } from '@/lib/utils'
 import { Plus } from 'lucide-react'
 import TaskCard from '../task/TaskCard'
 
+const TIME_OPTIONS = [
+  { label: '5 min', value: 5 },
+  { label: '10 min', value: 10 },
+  { label: '15 min', value: 15 },
+  { label: '20 min', value: 20 },
+  { label: '30 min', value: 30 },
+  { label: '45 min', value: 45 },
+  { label: '1 hr', value: 60 },
+  { label: '1.5 hr', value: 90 },
+  { label: '2 hr', value: 120 },
+  { label: '3 hr', value: 180 },
+  { label: '4 hr', value: 240 },
+  { label: '5 hr', value: 300 },
+  { label: '6 hr', value: 360 },
+]
+
 interface Props {
   date: Date
   dateStr: string
@@ -16,22 +32,12 @@ interface Props {
   loading: boolean
 }
 
-// Parses "30m", "1h", "1h30m" from end of title — e.g. "Review docs 30m"
-function parseTimeFromTitle(raw: string): { title: string; minutes: number | null } {
-  const match = raw.trim().match(/^(.+)\s+(\d+h\d+m|\d+h|\d+m)$/i)
-  if (!match) return { title: raw.trim(), minutes: null }
-  const timeStr = match[2]
-  const h = timeStr.match(/(\d+)h/i)
-  const m = timeStr.match(/(\d+)m/i)
-  const total = (h ? parseInt(h[1]) * 60 : 0) + (m ? parseInt(m[1]) : 0)
-  return { title: match[1].trim(), minutes: total || null }
-}
-
 export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
   const { isOver, setNodeRef } = useDroppable({ id: dateStr })
   const { addTask } = useAppStore()
   const [addingTask, setAddingTask] = useState(false)
   const [newTitle, setNewTitle] = useState('')
+  const [newMinutes, setNewMinutes] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const today = isToday(date)
@@ -40,9 +46,6 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
   const progress = total === 0 ? 0 : (completed / total) * 100
   const plannedMinutes = tasks.reduce((sum, t) => sum + (t.plannedTimeMinutes || 0), 0)
 
-  // Preview parsed time while typing
-  const preview = parseTimeFromTitle(newTitle)
-
   useEffect(() => {
     if (addingTask) inputRef.current?.focus()
   }, [addingTask])
@@ -50,20 +53,20 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
   function cancel() {
     setAddingTask(false)
     setNewTitle('')
+    setNewMinutes(null)
   }
 
   async function handleAddTask(e?: React.FormEvent) {
     e?.preventDefault()
     if (!newTitle.trim()) { cancel(); return }
-    const { title, minutes } = parseTimeFromTitle(newTitle)
     const res = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title,
+        title: newTitle.trim(),
         scheduledDate: dateStr,
         sortOrder: tasks.length,
-        plannedTimeMinutes: minutes,
+        plannedTimeMinutes: newMinutes,
       }),
     })
     const task: Task = await res.json()
@@ -119,20 +122,40 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
 
         {/* Add task */}
         {addingTask ? (
-          <form onSubmit={handleAddTask} className="mt-1">
+          <form onSubmit={handleAddTask} className="mt-1 space-y-1">
             <input
               ref={inputRef}
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
               onKeyDown={e => e.key === 'Escape' && cancel()}
-              placeholder="Task name… or add 30m / 1h"
+              placeholder="Task name…"
               className="w-full text-sm px-2 py-1.5 rounded border border-indigo-400 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none"
             />
-            {preview.minutes && (
-              <p className="text-xs text-indigo-500 mt-0.5 px-1">
-                ⏱ {minutesToHours(preview.minutes)} estimated · "{preview.title}"
-              </p>
-            )}
+            <div className="flex items-center gap-1">
+              <select
+                value={newMinutes ?? ''}
+                onChange={e => setNewMinutes(e.target.value ? parseInt(e.target.value) : null)}
+                className="flex-1 text-xs px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-400 focus:outline-none focus:border-indigo-400"
+              >
+                <option value="">Est. time (optional)</option>
+                {TIME_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={cancel}
+                className="text-xs px-2 py-1 text-stone-400 hover:text-stone-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
           </form>
         ) : (
           <button
