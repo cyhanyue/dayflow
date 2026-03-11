@@ -9,13 +9,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { setUser, setChannels, setContexts, setCalendars, user } = useAppStore()
 
   useEffect(() => {
-    fetch('/api/auth/me').then(r => r.json()).then(u => setUser(u))
-    fetch('/api/channels').then(r => r.json()).then(setChannels)
-    fetch('/api/contexts').then(r => r.json()).then(setContexts)
-    fetch('/api/calendars').then(r => r.json()).then(setCalendars)
+    Promise.all([
+      fetch('/api/auth/me').then(r => r.ok ? r.json() : null),
+      fetch('/api/channels').then(r => r.ok ? r.json() : []),
+      fetch('/api/contexts').then(r => r.ok ? r.json() : []),
+      fetch('/api/calendars').then(r => r.ok ? r.json() : []),
+    ]).then(([u, channels, contexts, calendars]) => {
+      if (u) setUser(u)
+      setChannels(channels ?? [])
+      setContexts(contexts ?? [])
+      setCalendars(calendars ?? [])
+    }).catch(err => console.error('Failed to load app data:', err))
   }, [setUser, setChannels, setContexts, setCalendars])
 
-  // Apply theme
   useEffect(() => {
     if (user?.theme === 'dark') {
       document.documentElement.classList.add('dark')
