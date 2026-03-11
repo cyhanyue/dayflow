@@ -16,16 +16,15 @@ interface Props {
   loading: boolean
 }
 
-// Parses "30m", "1h", "1h30m" from end of title string
+// Parses "30m", "1h", "1h30m" from end of title — e.g. "Review docs 30m"
 function parseTimeFromTitle(raw: string): { title: string; minutes: number | null } {
-  const match = raw.match(/^(.*?)\s+(?:(\d+)h)?(?:(\d+)m)?$/i)
-  if (match && (match[2] || match[3])) {
-    const hours = parseInt(match[2] || '0')
-    const mins = parseInt(match[3] || '0')
-    const total = hours * 60 + mins
-    if (total > 0) return { title: match[1].trim(), minutes: total }
-  }
-  return { title: raw.trim(), minutes: null }
+  const match = raw.trim().match(/^(.+)\s+(\d+h\d+m|\d+h|\d+m)$/i)
+  if (!match) return { title: raw.trim(), minutes: null }
+  const timeStr = match[2]
+  const h = timeStr.match(/(\d+)h/i)
+  const m = timeStr.match(/(\d+)m/i)
+  const total = (h ? parseInt(h[1]) * 60 : 0) + (m ? parseInt(m[1]) : 0)
+  return { title: match[1].trim(), minutes: total || null }
 }
 
 export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
