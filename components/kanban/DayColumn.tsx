@@ -38,6 +38,7 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
   const [addingTask, setAddingTask] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newMinutes, setNewMinutes] = useState<number | null>(null)
+  const [newRepeat, setNewRepeat] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const today = isToday(date)
@@ -54,11 +55,24 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
     setAddingTask(false)
     setNewTitle('')
     setNewMinutes(null)
+    setNewRepeat('none')
   }
 
   async function handleAddTask(e?: React.FormEvent) {
     e?.preventDefault()
     if (!newTitle.trim()) { cancel(); return }
+
+    let isRecurring = false
+    let recurrenceRule: string | null = null
+    if (newRepeat !== 'none') {
+      isRecurring = true
+      const [y, m, d] = dateStr.split('-').map(Number)
+      const dow = new Date(y, m - 1, d).getDay()
+      if (newRepeat === 'daily') recurrenceRule = JSON.stringify({ freq: 'daily' })
+      else if (newRepeat === 'weekly') recurrenceRule = JSON.stringify({ freq: 'weekly', days: [dow] })
+      else if (newRepeat === 'monthly') recurrenceRule = JSON.stringify({ freq: 'monthly', dayOfMonth: d })
+    }
+
     const res = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -67,6 +81,8 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
         scheduledDate: dateStr,
         sortOrder: tasks.length,
         plannedTimeMinutes: newMinutes,
+        isRecurring,
+        recurrenceRule,
       }),
     })
     const task: Task = await res.json()
@@ -131,17 +147,27 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
               placeholder="Task name…"
               className="w-full text-sm px-2 py-1.5 rounded border border-indigo-400 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none"
             />
+            <select
+              value={newMinutes ?? ''}
+              onChange={e => setNewMinutes(e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full text-xs px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-400 focus:outline-none focus:border-indigo-400"
+            >
+              <option value="">Est. time (optional)</option>
+              {TIME_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <select
+              value={newRepeat}
+              onChange={e => setNewRepeat(e.target.value as 'none' | 'daily' | 'weekly' | 'monthly')}
+              className="w-full text-xs px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-400 focus:outline-none focus:border-indigo-400"
+            >
+              <option value="none">No repeat</option>
+              <option value="daily">Repeat daily</option>
+              <option value="weekly">Repeat weekly</option>
+              <option value="monthly">Repeat monthly</option>
+            </select>
             <div className="flex items-center gap-1">
-              <select
-                value={newMinutes ?? ''}
-                onChange={e => setNewMinutes(e.target.value ? parseInt(e.target.value) : null)}
-                className="flex-1 text-xs px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-400 focus:outline-none focus:border-indigo-400"
-              >
-                <option value="">Est. time (optional)</option>
-                {TIME_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
               <button
                 type="submit"
                 className="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"

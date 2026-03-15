@@ -22,6 +22,7 @@ interface AppState {
   addTask: (task: Task) => void
   updateTask: (id: string, updates: Partial<Task>) => void
   removeTask: (id: string) => void
+  removeTasks: (ids: string[]) => void
   setChannels: (channels: Channel[]) => void
   setContexts: (contexts: Context[]) => void
   setCalendars: (calendars: Calendar[]) => void
@@ -60,6 +61,7 @@ export const useAppStore = create<AppState>((set) => ({
       tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     })),
   removeTask: (id) => set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
+  removeTasks: (ids) => set((s) => ({ tasks: s.tasks.filter((t) => !ids.includes(t.id)) })),
   setChannels: (channels) => set({ channels }),
   setContexts: (contexts) => set({ contexts }),
   setCalendars: (calendars) => set({ calendars }),

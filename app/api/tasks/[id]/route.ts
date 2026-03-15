@@ -88,14 +88,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await getAuthUser()
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const { id } = await params
     const existing = await prisma.task.findFirst({ where: { id, userId: auth.userId } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    await prisma.task.delete({ where: { id } })
+
+    const scope = new URL(req.url).searchParams.get('scope')
+
+    if (scope === 'series' && existing.isRecurring && existing.recurrenceRule) {
+      await prisma.task.deleteMany({
+        where: { userId: auth.userId, title: existing.title, recurrenceRule: existing.recurrenceRule, isRecurring: true },
+      })
+    } else if (scope === 'future' && existing.isRecurring && existing.scheduledDate) {
+      await prisma.task.deleteMany({
+        where: {
+          userId: auth.userId, title: existing.title, recurrenceRule: existing.recurrenceRule, isRecurring: true,
+          scheduledDate: { gte: existing.scheduledDate },
+        },
+      })
+    } else {
+      await prisma.task.delete({ where: { id } })
+    }
+
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('DELETE /api/tasks/[id] error:', err)

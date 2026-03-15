@@ -7,11 +7,12 @@ import { cn, minutesToHours } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 
 export default function TaskDetailPanel() {
-  const { activeTaskId, setActiveTaskId, tasks, updateTask, removeTask, channels, addTask } = useAppStore()
+  const { activeTaskId, setActiveTaskId, tasks, setTasks, updateTask, removeTask, channels, addTask } = useAppStore()
   const [task, setTask] = useState<Task | null>(null)
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [newSubtask, setNewSubtask] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   useEffect(() => {
     if (!activeTaskId) return
@@ -35,10 +36,20 @@ export default function TaskDetailPanel() {
     })
   }
 
-  async function handleDelete() {
+  async function handleDelete(scope?: 'future' | 'series') {
     if (!task) return
-    await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' })
-    removeTask(task.id)
+    const url = scope ? `/api/tasks/${task.id}?scope=${scope}` : `/api/tasks/${task.id}`
+    await fetch(url, { method: 'DELETE' })
+
+    if (scope === 'series') {
+      setTasks(tasks.filter(t => !(t.isRecurring && t.title === task.title && t.recurrenceRule === task.recurrenceRule)))
+    } else if (scope === 'future') {
+      setTasks(tasks.filter(t => !(t.isRecurring && t.title === task.title && t.recurrenceRule === task.recurrenceRule && (t.scheduledDate ?? '') >= (task.scheduledDate ?? ''))))
+    } else {
+      removeTask(task.id)
+    }
+
+    setDeleteConfirm(false)
     setActiveTaskId(null)
   }
 
@@ -64,14 +75,48 @@ export default function TaskDetailPanel() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-stone-100 dark:border-stone-800">
         <span className="text-sm font-medium text-stone-500">Task Detail</span>
         <div className="flex items-center gap-2">
-          <button onClick={handleDelete} className="p-1 text-stone-400 hover:text-red-500 transition-colors">
+          <button
+            onClick={() => task.isRecurring ? setDeleteConfirm(true) : handleDelete()}
+            className="p-1 text-stone-400 hover:text-red-500 transition-colors"
+          >
             <Trash2 size={15} />
           </button>
-          <button onClick={() => setActiveTaskId(null)} className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors">
+          <button onClick={() => { setDeleteConfirm(false); setActiveTaskId(null) }} className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors">
             <X size={18} />
           </button>
         </div>
       </div>
+
+      {/* Delete scope confirmation */}
+      {deleteConfirm && (
+        <div className="mx-4 mt-3 p-3 bg-stone-50 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700 text-xs space-y-1">
+          <p className="font-medium text-stone-700 dark:text-stone-300 mb-2">Delete recurring task?</p>
+          <button
+            onClick={() => handleDelete()}
+            className="w-full text-left px-2 py-1.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 transition-colors"
+          >
+            Delete this task only
+          </button>
+          <button
+            onClick={() => handleDelete('future')}
+            className="w-full text-left px-2 py-1.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 transition-colors"
+          >
+            Delete this and all future
+          </button>
+          <button
+            onClick={() => handleDelete('series')}
+            className="w-full text-left px-2 py-1.5 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 transition-colors"
+          >
+            Delete entire series
+          </button>
+          <button
+            onClick={() => setDeleteConfirm(false)}
+            className="w-full text-left px-2 py-1 text-stone-400 hover:text-stone-600 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Title */}
