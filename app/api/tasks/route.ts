@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const auth = await getAuthUser()
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { title, channelId, scheduledDate, plannedTimeMinutes, isBacklog, parentTaskId, notes } = await req.json()
+    const { title, channelId, scheduledDate, plannedTimeMinutes, isBacklog, parentTaskId, notes, isRecurring, recurrenceRule } = await req.json()
     if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 })
 
     const task = await prisma.task.create({
@@ -53,6 +53,8 @@ export async function POST(req: NextRequest) {
         isBacklog: isBacklog ?? false,
         parentTaskId: parentTaskId ?? null,
         notes: notes ?? null,
+        isRecurring: isRecurring ?? false,
+        recurrenceRule: recurrenceRule ?? null,
       },
       include: { channel: true, subtasks: true },
     })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { getNextOccurrence } from '@/lib/utils'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -56,6 +57,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       },
       include: { channel: true, subtasks: { orderBy: { sortOrder: 'asc' } } },
     })
+    // When a recurring task is completed, spawn the next occurrence
+    if (status === 'complete' && task.isRecurring && task.recurrenceRule) {
+      const fromDate = task.scheduledDate || new Date().toISOString().slice(0, 10)
+      const nextDate = getNextOccurrence(task.recurrenceRule, fromDate)
+      const agg = await prisma.task.aggregate({
+        _max: { sortOrder: true },
+        where: { userId: auth.userId, scheduledDate: nextDate },
+      })
+      await prisma.task.create({
+        data: {
+          userId: auth.userId,
+          title: task.title,
+          channelId: task.channelId,
+          plannedTimeMinutes: task.plannedTimeMinutes,
+          isRecurring: task.isRecurring,
+          recurrenceRule: task.recurrenceRule,
+          notes: task.notes,
+          scheduledDate: nextDate,
+          status: 'incomplete',
+          sortOrder: (agg._max.sortOrder ?? 0) + 1,
+        },
+      })
+    }
+
     return NextResponse.json(task)
   } catch (err) {
     console.error('PATCH /api/tasks/[id] error:', err)

@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Task } from '@/types'
 import { useAppStore } from '@/store/useAppStore'
 import { cn, minutesToHours } from '@/lib/utils'
-import { Check, Play, Square } from 'lucide-react'
+import { Check, Play, Square, Repeat } from 'lucide-react'
 
 interface Props {
   task: Task
@@ -95,8 +95,9 @@ export default function TaskCard({ task, isDragging }: Props) {
       </button>
 
       <div className="flex-1 min-w-0">
-        <p className={cn('text-stone-800 dark:text-stone-200 truncate leading-snug', task.status === 'complete' && 'line-through text-stone-400')}>
+        <p className={cn('text-stone-800 dark:text-stone-200 truncate leading-snug flex items-center gap-1', task.status === 'complete' && 'line-through text-stone-400')}>
           {task.title}
+          {task.isRecurring && <Repeat size={12} className="flex-shrink-0 text-stone-400" />}
         </p>
         <div className="flex items-center gap-2 mt-0.5 text-xs text-stone-400">
           {isTimerRunning && (

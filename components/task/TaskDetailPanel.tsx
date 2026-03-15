@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/useAppStore'
 import { Task } from '@/types'
-import { X, Trash2, Clock, Calendar, AlignLeft, Plus, Check } from 'lucide-react'
+import { X, Trash2, Clock, Calendar, AlignLeft, Plus, Check, Repeat } from 'lucide-react'
 import { cn, minutesToHours } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 
@@ -134,6 +134,93 @@ export default function TaskDetailPanel() {
             className="text-sm bg-transparent border border-stone-200 dark:border-stone-700 rounded px-2 py-1 text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
+
+        {/* Repeat */}
+        {(() => {
+          const rule = task.isRecurring && task.recurrenceRule
+            ? JSON.parse(task.recurrenceRule) as { freq: string; days?: number[]; dayOfMonth?: number }
+            : { freq: 'none' }
+          const WEEKDAYS = [
+            { label: 'Mo', value: 1 }, { label: 'Tu', value: 2 }, { label: 'We', value: 3 },
+            { label: 'Th', value: 4 }, { label: 'Fr', value: 5 }, { label: 'Sa', value: 6 }, { label: 'Su', value: 0 },
+          ]
+          return (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-stone-400 w-20 flex items-center gap-1"><Repeat size={12} />Repeat</span>
+                <select
+                  value={rule.freq}
+                  onChange={e => {
+                    const freq = e.target.value
+                    if (freq === 'none') {
+                      save({ isRecurring: false, recurrenceRule: null })
+                    } else if (freq === 'daily') {
+                      save({ isRecurring: true, recurrenceRule: JSON.stringify({ freq: 'daily' }) })
+                    } else if (freq === 'weekly') {
+                      const dow = task.scheduledDate ? new Date(task.scheduledDate + 'T00:00:00').getDay() : 1
+                      save({ isRecurring: true, recurrenceRule: JSON.stringify({ freq: 'weekly', days: [dow] }) })
+                    } else if (freq === 'monthly') {
+                      const dom = task.scheduledDate ? parseInt(task.scheduledDate.split('-')[2]) : 1
+                      save({ isRecurring: true, recurrenceRule: JSON.stringify({ freq: 'monthly', dayOfMonth: dom }) })
+                    }
+                  }}
+                  className="flex-1 text-sm bg-transparent border border-stone-200 dark:border-stone-700 rounded px-2 py-1 text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="none">None</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+              {rule.freq === 'weekly' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-stone-400 w-20" />
+                  <div className="flex gap-1">
+                    {WEEKDAYS.map(({ label, value }) => {
+                      const days = rule.days || []
+                      const active = days.includes(value)
+                      return (
+                        <button
+                          key={value}
+                          onClick={() => {
+                            const newDays = active ? days.filter(d => d !== value) : [...days, value]
+                            if (newDays.length === 0) return
+                            save({ isRecurring: true, recurrenceRule: JSON.stringify({ freq: 'weekly', days: newDays }) })
+                          }}
+                          className={cn(
+                            'w-7 h-7 rounded text-xs font-medium transition-colors',
+                            active
+                              ? 'bg-indigo-500 text-white'
+                              : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700'
+                          )}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              {rule.freq === 'monthly' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-stone-400 w-20" />
+                  <input
+                    type="number" min={1} max={31}
+                    value={rule.dayOfMonth ?? ''}
+                    onChange={e => {
+                      const dom = parseInt(e.target.value)
+                      if (dom >= 1 && dom <= 31) {
+                        save({ isRecurring: true, recurrenceRule: JSON.stringify({ freq: 'monthly', dayOfMonth: dom }) })
+                      }
+                    }}
+                    className="w-16 text-sm bg-transparent border border-stone-200 dark:border-stone-700 rounded px-2 py-1 text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <span className="text-xs text-stone-400">day of month</span>
+                </div>
+              )}
+            </>
+          )
+        })()}
 
         {/* Notes */}
         <div>
