@@ -17,23 +17,49 @@ function unescape(val: string): string {
   return val.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\')
 }
 
-// Parse a DTSTART or DTEND value into a Date
-// Handles: 20260315T090000Z, 20260315T090000, 20260315 (all-day)
-function parseDate(val: string): { date: Date; isAllDay: boolean } {
-  const cleaned = val.split(';').pop()! // strip TZID= prefix if present via property param
-  if (/^\d{8}$/.test(cleaned)) {
+// Convert a naive local datetime (in tzid) to UTC using Intl
+function localToUtc(y: number, mo: number, d: number, h: number, min: number, s: number, tzid: string): Date {
+  // Treat the desired local time as if it were UTC, then compute the offset
+  const candidateUtc = new Date(Date.UTC(y, mo, d, h, min, s))
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tzid,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    }).formatToParts(candidateUtc)
+    const get = (type: string) => +parts.find(p => p.type === type)!.value
+    const tzAsUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'))
+    const offset = candidateUtc.getTime() - tzAsUtc
+    return new Date(Date.UTC(y, mo, d, h, min, s) + offset)
+  } catch {
+    // Unknown timezone — fall back to UTC
+    return candidateUtc
+  }
+}
+
+// Parse a DTSTART or DTEND property (key + value) into a Date.
+// key examples: "DTSTART", "DTSTART;TZID=America/Los_Angeles", "DTSTART;VALUE=DATE"
+// val examples: "20260315T090000Z", "20260315T090000", "20260315"
+function parseDate(key: string, val: string): { date: Date; isAllDay: boolean } {
+  if (/^\d{8}$/.test(val)) {
     // All-day: YYYYMMDD
-    const y = +cleaned.slice(0, 4), m = +cleaned.slice(4, 6) - 1, d = +cleaned.slice(6, 8)
-    return { date: new Date(y, m, d, 0, 0, 0), isAllDay: true }
+    const y = +val.slice(0, 4), m = +val.slice(4, 6) - 1, d = +val.slice(6, 8)
+    return { date: new Date(Date.UTC(y, m, d)), isAllDay: true }
   }
   // Datetime: YYYYMMDDTHHMMSS[Z]
-  const y = +cleaned.slice(0, 4), mo = +cleaned.slice(4, 6) - 1, d = +cleaned.slice(6, 8)
-  const h = +cleaned.slice(9, 11), min = +cleaned.slice(11, 13), s = +cleaned.slice(13, 15)
-  const isUtc = cleaned.endsWith('Z')
-  return {
-    date: isUtc ? new Date(Date.UTC(y, mo, d, h, min, s)) : new Date(y, mo, d, h, min, s),
-    isAllDay: false,
+  const y = +val.slice(0, 4), mo = +val.slice(4, 6) - 1, d = +val.slice(6, 8)
+  const h = +val.slice(9, 11), min = +val.slice(11, 13), s = +val.slice(13, 15)
+  if (val.endsWith('Z')) {
+    return { date: new Date(Date.UTC(y, mo, d, h, min, s)), isAllDay: false }
   }
+  // Has TZID — convert from that timezone to UTC
+  const tzidMatch = key.match(/TZID=([^;:]+)/)
+  if (tzidMatch) {
+    return { date: localToUtc(y, mo, d, h, min, s, tzidMatch[1]), isAllDay: false }
+  }
+  // No timezone info — treat as UTC
+  return { date: new Date(Date.UTC(y, mo, d, h, min, s)), isAllDay: false }
 }
 
 export function parseIcal(raw: string): ICalEvent[] {
@@ -53,20 +79,19 @@ export function parseIcal(raw: string): ICalEvent[] {
     if (line === 'END:VEVENT') {
       inEvent = false
       try {
-        // Get property name (before first : or ;)
-        const get = (key: string): string => {
-          // Match exact key or key with params (e.g. DTSTART;TZID=...)
-          const entry = Object.entries(props).find(([k]) => k === key || k.startsWith(key + ';'))
-          return entry ? entry[1] : ''
+        // Get property value and full key (e.g. DTSTART;TZID=America/Los_Angeles)
+        const getEntry = (propName: string): { key: string; val: string } | null => {
+          const entry = Object.entries(props).find(([k]) => k === propName || k.startsWith(propName + ';'))
+          return entry ? { key: entry[0], val: entry[1] } : null
         }
+        const get = (propName: string): string => getEntry(propName)?.val ?? ''
 
-        const startRaw = get('DTSTART')
-        const endRaw = get('DTEND')
-        if (!startRaw) continue
+        const startEntry = getEntry('DTSTART')
+        const endEntry = getEntry('DTEND')
+        if (!startEntry) continue
 
-        // For DTSTART;VALUE=DATE or DTSTART;TZID=..., the value part after last : is the date
-        const startParsed = parseDate(startRaw)
-        const endParsed = endRaw ? parseDate(endRaw) : startParsed
+        const startParsed = parseDate(startEntry.key, startEntry.val)
+        const endParsed = endEntry ? parseDate(endEntry.key, endEntry.val) : startParsed
 
         // Skip cancelled or tentative events (not accepted by the user)
         const status = get('STATUS')
