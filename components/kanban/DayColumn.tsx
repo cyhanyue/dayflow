@@ -1,12 +1,12 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { format, isToday } from 'date-fns'
+import { format, isToday, parseISO, differenceInMinutes } from 'date-fns'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useAppStore } from '@/store/useAppStore'
-import { Task } from '@/types'
+import { Task, CalendarEvent } from '@/types'
 import { cn, minutesToHours } from '@/lib/utils'
-import { Plus } from 'lucide-react'
+import { Plus, Calendar } from 'lucide-react'
 import TaskCard from '../task/TaskCard'
 
 const TIME_OPTIONS = [
@@ -29,11 +29,54 @@ interface Props {
   date: Date
   dateStr: string
   tasks: Task[]
+  events: CalendarEvent[]
   loading: boolean
 }
 
-export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
-  const { isOver, setNodeRef } = useDroppable({ id: dateStr })
+function EventChipDroppable({ event }: { event: CalendarEvent }) {
+  const { setNodeRef, isOver } = useDroppable({ id: event.id })
+  const color = event.calendar?.color || '#4285f4'
+  const start = parseISO(event.startDatetime)
+  const end = parseISO(event.endDatetime)
+  const durationMins = differenceInMinutes(end, start)
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn('flex items-start gap-2 px-2.5 py-1.5 rounded-lg border text-xs select-none transition-colors', isOver && 'brightness-95')}
+      style={{ backgroundColor: color + '14', borderColor: color + '40', borderLeftColor: color, borderLeftWidth: 3 }}
+    >
+      <Calendar size={11} className="flex-shrink-0 mt-0.5" style={{ color }} />
+      <div className="flex-1 min-w-0">
+        <p className="font-medium break-words" style={{ color }}>{event.title}</p>
+        {!event.isAllDay && (
+          <p className="opacity-60 mt-0.5" style={{ color }}>
+            {format(start, 'h:mm a')}
+            {durationMins > 0 && ` · ${minutesToHours(durationMins)}`}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export type CombinedItem =
+  | { type: 'task'; id: string; position: number }
+  | { type: 'event'; id: string; position: number }
+
+export function buildMergedItems(tasks: Task[], events: CalendarEvent[]): CombinedItem[] {
+  return [
+    ...tasks.map(t => ({ type: 'task' as const, id: t.id, position: t.sortOrder })),
+    ...events.map(e => ({
+      type: 'event' as const,
+      id: e.id,
+      position: parseISO(e.startDatetime).getHours() * 60 + parseISO(e.startDatetime).getMinutes(),
+    })),
+  ].sort((a, b) => a.position - b.position)
+}
+
+export default function DayColumn({ date, dateStr, tasks, events, loading }: Props) {
+  const { isOver: isColOver, setNodeRef: setColRef } = useDroppable({ id: dateStr })
   const { addTask } = useAppStore()
   const [addingTask, setAddingTask] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -45,7 +88,18 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
   const completed = tasks.filter(t => t.status === 'complete').length
   const total = tasks.length
   const progress = total === 0 ? 0 : (completed / total) * 100
-  const plannedMinutes = tasks.reduce((sum, t) => sum + (t.plannedTimeMinutes || 0), 0)
+
+  const taskMinutes = tasks.reduce((sum, t) => sum + (t.plannedTimeMinutes || 0), 0)
+  const meetingMinutes = events
+    .filter(e => !e.isAllDay)
+    .reduce((sum, e) => sum + Math.max(0, differenceInMinutes(parseISO(e.endDatetime), parseISO(e.startDatetime))), 0)
+  const totalMinutes = taskMinutes + meetingMinutes
+
+  const mergedItems = buildMergedItems(tasks, events)
+  const sortedTaskIds = mergedItems.filter(i => i.type === 'task').map(i => i.id)
+
+  const taskMap = Object.fromEntries(tasks.map(t => [t.id, t]))
+  const eventMap = Object.fromEntries(events.map(e => [e.id, e]))
 
   useEffect(() => {
     if (addingTask) inputRef.current?.focus()
@@ -92,11 +146,11 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
 
   return (
     <div
-      ref={setNodeRef}
+      ref={setColRef}
       className={cn(
         'flex flex-col min-w-[220px] w-[220px] border-r border-stone-200 dark:border-stone-800 h-full',
         today ? 'bg-indigo-50/30 dark:bg-indigo-950/20' : 'bg-white dark:bg-stone-900',
-        isOver && 'bg-indigo-50 dark:bg-indigo-950/30'
+        isColOver && 'bg-indigo-50 dark:bg-indigo-950/30'
       )}
     >
       {/* Column header */}
@@ -110,29 +164,46 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
               {format(date, 'd')}
             </span>
           </div>
-          {plannedMinutes > 0 && (
-            <span className="text-xs text-stone-400">{minutesToHours(plannedMinutes)}</span>
-          )}
         </div>
+
+        {/* Stats row */}
+        {totalMinutes > 0 && (
+          <div className="flex items-center gap-2 mt-1 mb-1.5 flex-wrap">
+            {meetingMinutes > 0 && (
+              <span className="text-xs text-blue-500 dark:text-blue-400 flex items-center gap-0.5">
+                <Calendar size={10} />
+                {minutesToHours(meetingMinutes)} meetings
+              </span>
+            )}
+            {taskMinutes > 0 && (
+              <span className="text-xs text-stone-400">{minutesToHours(taskMinutes)} tasks</span>
+            )}
+            {meetingMinutes > 0 && taskMinutes > 0 && (
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+                = {minutesToHours(totalMinutes)} total
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="h-1 bg-stone-100 dark:bg-stone-800 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-indigo-500 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="h-full bg-indigo-500 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
-      {/* Tasks */}
+      {/* Interleaved tasks + events */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-        <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={sortedTaskIds} strategy={verticalListSortingStrategy}>
           {loading ? (
             <div className="space-y-1.5">
-              {[1, 2].map(i => (
-                <div key={i} className="h-12 bg-stone-100 dark:bg-stone-800 rounded-lg animate-pulse" />
-              ))}
+              {[1, 2].map(i => <div key={i} className="h-12 bg-stone-100 dark:bg-stone-800 rounded-lg animate-pulse" />)}
             </div>
           ) : (
-            tasks.map(task => <TaskCard key={task.id} task={task} />)
+            mergedItems.map(item =>
+              item.type === 'event'
+                ? <EventChipDroppable key={item.id} event={eventMap[item.id]} />
+                : <TaskCard key={item.id} task={taskMap[item.id]} />
+            )
           )}
         </SortableContext>
 
@@ -153,9 +224,7 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
               className="w-full text-xs px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-400 focus:outline-none focus:border-indigo-400"
             >
               <option value="">Est. time (optional)</option>
-              {TIME_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
+              {TIME_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
             <select
               value={newRepeat}
@@ -168,19 +237,8 @@ export default function DayColumn({ date, dateStr, tasks, loading }: Props) {
               <option value="monthly">Repeat monthly</option>
             </select>
             <div className="flex items-center gap-1">
-              <button
-                type="submit"
-                className="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
-              >
-                Add
-              </button>
-              <button
-                type="button"
-                onClick={cancel}
-                className="text-xs px-2 py-1 text-stone-400 hover:text-stone-600 transition-colors"
-              >
-                ✕
-              </button>
+              <button type="submit" className="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors">Add</button>
+              <button type="button" onClick={cancel} className="text-xs px-2 py-1 text-stone-400 hover:text-stone-600 transition-colors">✕</button>
             </div>
           </form>
         ) : (

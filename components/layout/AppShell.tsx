@@ -15,7 +15,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       fetch('/api/contexts').then(r => r.ok ? r.json() : []),
       fetch('/api/calendars').then(r => r.ok ? r.json() : []),
     ]).then(([u, channels, contexts, calendars]) => {
-      if (u) setUser(u)
+      if (u) {
+        setUser(u)
+        // Auto-sync calendars in background if connected
+        if (u.googleConnected) {
+          fetch('/api/calendars/google/sync', { method: 'POST' }).catch(() => {})
+        }
+        if (u.icalConnected) {
+          fetch('/api/calendars/ical/sync', { method: 'POST' }).catch(() => {})
+        }
+      }
       setChannels(channels ?? [])
       setContexts(contexts ?? [])
       setCalendars(calendars ?? [])

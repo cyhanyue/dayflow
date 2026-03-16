@@ -20,6 +20,10 @@ model User {
   hideCompletedTasksToday     Boolean   @default(false)
   autoArchiveAfterDays        Int       @default(4)
   calendarEventColoring       String    @default("by_channel")
+  googleRefreshToken          String?
+  googleAccessToken           String?
+  googleTokenExpiry           DateTime?
+  icalUrl                     String?
   createdAt                   DateTime  @default(now())
   updatedAt                   DateTime  @updatedAt
 
@@ -76,7 +80,7 @@ model Task {
   actualTimeMinutes      Int?
   timeboxStart           DateTime?
   timeboxEnd             DateTime?
-  sortOrder              Int       @default(0)
+  sortOrder              Float     @default(0)
   isRecurring            Boolean   @default(false)
   recurrenceRule         String?
   isBacklog              Boolean   @default(false)

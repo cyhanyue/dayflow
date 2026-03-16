@@ -9,6 +9,8 @@ export interface User {
   hideCompletedTasksToday: boolean
   autoArchiveAfterDays: number
   calendarEventColoring: string
+  googleConnected: boolean
+  icalConnected: boolean
 }
 
 export interface Context {
