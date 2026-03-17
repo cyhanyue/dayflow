@@ -141,18 +141,26 @@ export default function AnalyticsPage() {
   const [range, setRange] = useState<Range>('7d')
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     fetch(`/api/analytics?range=${range}`)
-      .then(r => r.json())
-      .then(d => {
-        // Only accept well-formed responses
-        if (d && Array.isArray(d.daily)) setData(d)
-        else setData(null)
+      .then(async r => {
+        const d = await r.json()
+        if (d && Array.isArray(d.daily)) {
+          setData(d)
+        } else {
+          setData(null)
+          setError(d?.error ?? `HTTP ${r.status}`)
+        }
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(err => {
+        setError(String(err))
+        setLoading(false)
+      })
   }, [range])
 
   const maxMinutes = data?.daily?.length
@@ -294,7 +302,10 @@ export default function AnalyticsPage() {
             )}
           </>
         ) : (
-          <div className="text-center py-12 text-stone-400 text-sm">Failed to load analytics.</div>
+          <div className="text-center py-12 text-stone-400 text-sm">
+            <p>Failed to load analytics.</p>
+            {error && <p className="text-xs mt-1 text-red-400 font-mono">{error}</p>}
+          </div>
         )}
       </div>
     </div>
