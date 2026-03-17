@@ -6,7 +6,7 @@ import RightSidebar from './RightSidebar'
 import FloatingTimer from '../task/FloatingTimer'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { setUser, setChannels, setContexts, setCalendars, user } = useAppStore()
+  const { setUser, setChannels, setContexts, setCalendars, user, bumpSyncKey } = useAppStore()
 
   useEffect(() => {
     Promise.all([
@@ -17,19 +17,42 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     ]).then(([u, channels, contexts, calendars]) => {
       if (u) {
         setUser(u)
-        // Auto-sync calendars in background if connected
+        // Sync calendars on app load
         if (u.googleConnected) {
-          fetch('/api/calendars/google/sync', { method: 'POST' }).catch(() => {})
+          fetch('/api/calendars/google/sync', { method: 'POST' })
+            .then(() => bumpSyncKey())
+            .catch(() => {})
         }
         if (u.icalConnected) {
-          fetch('/api/calendars/ical/sync', { method: 'POST' }).catch(() => {})
+          fetch('/api/calendars/ical/sync', { method: 'POST' })
+            .then(() => bumpSyncKey())
+            .catch(() => {})
         }
       }
       setChannels(channels ?? [])
       setContexts(contexts ?? [])
       setCalendars(calendars ?? [])
     }).catch(err => console.error('Failed to load app data:', err))
-  }, [setUser, setChannels, setContexts, setCalendars])
+  }, [setUser, setChannels, setContexts, setCalendars, bumpSyncKey])
+
+  // Periodic sync every 15 minutes
+  useEffect(() => {
+    if (!user) return
+    const interval = setInterval(async () => {
+      try {
+        if (user.googleConnected) {
+          await fetch('/api/calendars/google/sync', { method: 'POST' })
+        }
+        if (user.icalConnected) {
+          await fetch('/api/calendars/ical/sync', { method: 'POST' })
+        }
+        bumpSyncKey()
+      } catch {
+        // Silent fail — next interval will retry
+      }
+    }, 15 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [user, bumpSyncKey])
 
   useEffect(() => {
     if (user?.theme === 'dark') {

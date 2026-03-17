@@ -4,7 +4,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { format, addDays, startOfWeek, addHours, differenceInMinutes, parseISO, isSameDay, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { CalendarEvent, Task } from '@/types'
 import { cn } from '@/lib/utils'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Globe } from 'lucide-react'
 
 const HOUR_HEIGHT = 64 // px per hour
 const START_HOUR = 0
@@ -12,6 +12,30 @@ const END_HOUR = 24
 const TOTAL_HOURS = END_HOUR - START_HOUR
 
 type ViewMode = 'day' | '3day' | 'week' | 'month'
+
+// US timezone definitions
+const US_TIMEZONES = [
+  { id: 'ET', label: 'ET', iana: 'America/New_York' },
+  { id: 'CT', label: 'CT', iana: 'America/Chicago' },
+  { id: 'MT', label: 'MT', iana: 'America/Denver' },
+  { id: 'PT', label: 'PT', iana: 'America/Los_Angeles' },
+]
+
+function getUserPrimaryTzId(): string {
+  const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const match = US_TIMEZONES.find(tz => tz.iana === userTz)
+  return match?.id ?? 'ET' // default to ET for non-US timezones
+}
+
+function getHourLabel(localHour: number, targetIana: string): string {
+  const d = new Date()
+  d.setHours(localHour, 0, 0, 0)
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    hour12: true,
+    timeZone: targetIana,
+  }).format(d).replace(' AM', 'a').replace(' PM', 'p')
+}
 
 function timeToY(datetime: Date): number {
   const h = datetime.getHours() + datetime.getMinutes() / 60
@@ -23,34 +47,116 @@ function durationToHeight(startDt: Date, endDt: Date): number {
   return Math.max((mins / 60) * HOUR_HEIGHT, 20)
 }
 
+/**
+ * Compute side-by-side layout for overlapping events in a single day column.
+ *
+ * Algorithm:
+ *  1. Sort events by start time and greedily assign columns (interval scheduling).
+ *  2. For each event, compute totalColumns = max number of events simultaneously
+ *     active at any moment during *that event's* duration.
+ *     This ensures solo / non-overlapping events always get full width, and events
+ *     that only partially overlap (A-B-C chain where A and C don't directly overlap)
+ *     are sized based on their own actual concurrency rather than the whole chain.
+ */
+function computeOverlapLayout(events: CalendarEvent[]): Map<string, { column: number; totalColumns: number }> {
+  const result = new Map<string, { column: number; totalColumns: number }>()
+  if (events.length === 0) return result
+
+  const parsed = events.map(e => ({
+    id: e.id,
+    start: parseISO(e.startDatetime).getTime(),
+    end: parseISO(e.endDatetime).getTime(),
+  }))
+
+  // Step 1: greedy column assignment sorted by start time
+  const sorted = [...parsed].sort((a, b) => a.start - b.start || b.end - a.end)
+  const colEnds: number[] = []
+  const columnOf = new Map<string, number>()
+
+  for (const ev of sorted) {
+    let col = colEnds.findIndex(end => end <= ev.start)
+    if (col === -1) col = colEnds.length
+    colEnds[col] = ev.end
+    columnOf.set(ev.id, col)
+  }
+
+  // Step 2: per-event totalColumns = max concurrency at any moment during this event
+  for (const ev of parsed) {
+    // Events that overlap with ev (strictly: one starts before the other ends)
+    const overlapping = parsed.filter(o => o.id !== ev.id && o.start < ev.end && o.end > ev.start)
+
+    if (overlapping.length === 0) {
+      result.set(ev.id, { column: 0, totalColumns: 1 })
+      continue
+    }
+
+    // Collect boundary times within ev's duration to create sub-intervals
+    const boundaries = new Set<number>([ev.start])
+    for (const o of overlapping) {
+      if (o.start > ev.start && o.start < ev.end) boundaries.add(o.start)
+      if (o.end > ev.start && o.end < ev.end) boundaries.add(o.end)
+    }
+    boundaries.add(ev.end)
+    const pts = [...boundaries].sort((a, b) => a - b)
+
+    // Find max concurrent events at the midpoint of each sub-interval
+    let maxConcurrent = 1
+    for (let i = 0; i < pts.length - 1; i++) {
+      const mid = (pts[i] + pts[i + 1]) / 2
+      // Count how many events (including ev itself) are active at mid
+      const count = parsed.filter(o => o.start <= mid && o.end > mid).length
+      maxConcurrent = Math.max(maxConcurrent, count)
+    }
+
+    const myCol = columnOf.get(ev.id)!
+    result.set(ev.id, { column: myCol, totalColumns: Math.max(maxConcurrent, myCol + 1) })
+  }
+
+  return result
+}
+
 interface EventBlockProps {
   event: CalendarEvent
-  columnWidth: number
+  column: number
+  totalColumns: number
   onDelete: (id: string) => void
   onEdit: (event: CalendarEvent) => void
 }
 
-function EventBlock({ event, onDelete, onEdit }: EventBlockProps) {
+function EventBlock({ event, column, totalColumns, onDelete, onEdit }: EventBlockProps) {
   const start = parseISO(event.startDatetime)
   const end = parseISO(event.endDatetime)
   const top = timeToY(start)
   const height = durationToHeight(start, end)
-  const color = event.channel?.color || event.calendar?.color || '#6366f1'
+  const baseColor = event.channel?.color || event.calendar?.color || '#6366f1'
+
+  const isCancelled = event.status === 'cancelled'
+  const isTentative = event.status === 'tentative'
+  const color = isCancelled ? '#9ca3af' : baseColor
+  const bgOpacity = isCancelled ? '11' : isTentative ? '10' : '22'
+  const borderStyle = isTentative ? 'dashed' : 'solid'
+
+  const leftPct = (column / totalColumns) * 100
+  const widthPct = (1 / totalColumns) * 100
 
   return (
     <div
-      className="absolute left-0 right-1 rounded-md px-2 py-1 cursor-pointer group overflow-hidden"
+      className="absolute rounded-md px-2 py-1 cursor-pointer group overflow-hidden"
       style={{
         top: `${top}px`,
         height: `${height}px`,
-        backgroundColor: color + '22',
-        borderLeft: `3px solid ${color}`,
+        left: `${leftPct}%`,
+        width: `calc(${widthPct}% - 3px)`,
+        backgroundColor: color + bgOpacity,
+        borderLeft: `3px ${borderStyle} ${color}`,
+        opacity: isCancelled ? 0.5 : 1,
       }}
       onClick={() => onEdit(event)}
     >
-      <p className="text-xs font-medium truncate" style={{ color }}>{event.title}</p>
+      <p className={cn('text-xs font-medium truncate', isCancelled && 'line-through')} style={{ color }}>{event.title}</p>
       <p className="text-xs opacity-60" style={{ color }}>
         {format(start, 'h:mm a')}
+        {isTentative && <span className="ml-1 opacity-70">(tentative)</span>}
       </p>
       <button
         onClick={e => { e.stopPropagation(); onDelete(event.id) }}
@@ -142,15 +248,18 @@ function NewEventModal({ start, onSave, onClose }: NewEventModalProps) {
 }
 
 export default function CalendarView() {
-  const { events, setEvents, tasks } = useAppStore()
+  const { events, setEvents, tasks, syncKey } = useAppStore()
   const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [newEventSlot, setNewEventSlot] = useState<Date | null>(null)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
+  const [showExtraTimezones, setShowExtraTimezones] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Suppress unused variable warning for editingEvent setter
   void editingEvent
+
+  const primaryTzId = getUserPrimaryTzId()
+  const extraTimezones = US_TIMEZONES.filter(tz => tz.id !== primaryTzId)
 
   // Compute visible day columns
   const days: Date[] = (() => {
@@ -169,7 +278,9 @@ export default function CalendarView() {
     setEvents(data)
   }, [rangeStart.toISOString(), rangeEnd.toISOString(), setEvents])
 
-  useEffect(() => { loadEvents() }, [loadEvents])
+  // Re-load events whenever range changes OR a background sync completes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadEvents() }, [loadEvents, syncKey])
 
   // Scroll to 8am on mount
   useEffect(() => {
@@ -187,7 +298,7 @@ export default function CalendarView() {
 
   function handleGridClick(day: Date, e: React.MouseEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
-    const y = e.clientY - rect.top + (e.currentTarget.parentElement?.scrollTop || 0)
+    const y = e.clientY - rect.top + (scrollRef.current?.scrollTop || 0)
     const hour = Math.floor(y / HOUR_HEIGHT)
     const mins = Math.round((y % HOUR_HEIGHT) / HOUR_HEIGHT * 60 / 15) * 15
     const slot = new Date(day)
@@ -217,12 +328,16 @@ export default function CalendarView() {
   }
 
   const timeboxedTasks = tasks.filter(t => t.timeboxStart && t.timeboxEnd)
-
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => i + START_HOUR)
+
+  // Width of the gutter area
+  const extraTzWidth = 36 // px per extra timezone column
+  const mainGutterWidth = 56 // px for main time labels
+  const gutterWidth = mainGutterWidth + (showExtraTimezones ? extraTimezones.length * extraTzWidth : 0)
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Header */}
+      {/* Top navigation header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 flex-shrink-0">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate(-1)} className="p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 transition-colors">
@@ -261,38 +376,104 @@ export default function CalendarView() {
       {viewMode === 'month' ? (
         <MonthView days={days} currentDate={currentDate} tasks={tasks} events={events} />
       ) : (
-        <div className="flex flex-1 overflow-hidden">
-          {/* Time gutter */}
-          <div className="w-14 flex-shrink-0 border-r border-stone-200 dark:border-stone-800 overflow-hidden">
-            <div className="h-10 border-b border-stone-200 dark:border-stone-800" /> {/* header spacer */}
-            <div className="overflow-hidden" style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}>
-              {hours.map(h => (
-                <div key={h} className="flex items-start" style={{ height: HOUR_HEIGHT }}>
-                  <span className="text-xs text-stone-400 px-2 -mt-2">
-                    {h === 0 ? '' : format(new Date().setHours(h, 0), 'h a')}
+        /*
+         * Week/Day/3-Day view layout:
+         * - Single scrollable container (vertical scroll)
+         * - Sticky left gutter (timezone labels + time labels)
+         * - Sticky top day headers
+         * - Day columns fill the rest
+         */
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Fixed header row: gutter corner + day column headers */}
+          <div className="flex flex-shrink-0 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900">
+            {/* Corner placeholder matching gutter width */}
+            <div
+              className="flex-shrink-0 border-r border-stone-200 dark:border-stone-800 flex items-end pb-1"
+              style={{ width: gutterWidth }}
+            >
+              {/* Timezone toggle button */}
+              <button
+                onClick={() => setShowExtraTimezones(v => !v)}
+                title={showExtraTimezones ? 'Hide other timezones' : 'Show US timezones'}
+                className={cn(
+                  'mx-auto flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded transition-colors',
+                  showExtraTimezones
+                    ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40'
+                    : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+                )}
+              >
+                <Globe size={10} />
+                <span>{primaryTzId}</span>
+              </button>
+            </div>
+            {/* Day headers — flex children, one per day */}
+            <div className="flex flex-1" style={{ minWidth: days.length * 120 }}>
+              {days.map((day, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'flex-1 flex items-center justify-center h-10 text-xs font-medium',
+                    isSameDay(day, new Date()) ? 'text-indigo-600 dark:text-indigo-400' : 'text-stone-500'
+                  )}
+                >
+                  <span className="mr-1">{format(day, 'EEE')}</span>
+                  <span className={cn(
+                    'w-6 h-6 rounded-full flex items-center justify-center',
+                    isSameDay(day, new Date()) && 'bg-indigo-600 text-white'
+                  )}>
+                    {format(day, 'd')}
                   </span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Day columns */}
-          <div className="flex flex-1 overflow-x-auto overflow-y-hidden min-w-0">
-            <div className="flex flex-1 min-w-0" style={{ minWidth: days.length * 120 }}>
-              {/* Day headers */}
-              <div className="flex w-full border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 h-10 absolute" style={{ width: 'calc(100% - 56px)' }}>
-                {days.map((day, i) => (
-                  <div key={i} className={cn('flex-1 flex items-center justify-center text-xs font-medium', isSameDay(day, new Date()) ? 'text-indigo-600 dark:text-indigo-400' : 'text-stone-500')}>
-                    <span className="mr-1">{format(day, 'EEE')}</span>
-                    <span className={cn('w-6 h-6 rounded-full flex items-center justify-center', isSameDay(day, new Date()) && 'bg-indigo-600 text-white')}>
-                      {format(day, 'd')}
-                    </span>
+          {/* Scrollable time grid */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-auto">
+            <div className="flex" style={{ minWidth: gutterWidth + days.length * 120 }}>
+
+              {/* Sticky left gutter: extra timezones + main time labels */}
+              <div
+                className="flex-shrink-0 sticky left-0 z-20 bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 flex"
+                style={{ width: gutterWidth }}
+              >
+                {/* Collapsible extra timezone columns */}
+                {showExtraTimezones && extraTimezones.map(tz => (
+                  <div
+                    key={tz.id}
+                    className="border-r border-stone-100 dark:border-stone-800"
+                    style={{ width: extraTzWidth }}
+                  >
+                    {hours.map(h => (
+                      <div
+                        key={h}
+                        className="flex items-start justify-center"
+                        style={{ height: HOUR_HEIGHT }}
+                      >
+                        {h !== 0 && (
+                          <span className="text-[9px] text-stone-300 dark:text-stone-600 -mt-2 leading-none">
+                            {getHourLabel(h, tz.iana)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 ))}
+
+                {/* Main time label column */}
+                <div style={{ width: mainGutterWidth }}>
+                  {hours.map(h => (
+                    <div key={h} className="flex items-start" style={{ height: HOUR_HEIGHT }}>
+                      <span className="text-xs text-stone-400 px-2 -mt-2">
+                        {h === 0 ? '' : format(new Date().setHours(h, 0), 'h a')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Scrollable time grid */}
-              <div ref={scrollRef} className="flex flex-1 overflow-y-auto mt-10">
+              {/* Day columns */}
+              <div className="flex" style={{ minWidth: days.length * 120, flex: 1 }}>
                 {days.map((day, di) => (
                   <div
                     key={di}
@@ -300,7 +481,7 @@ export default function CalendarView() {
                       'flex-1 relative border-r border-stone-200 dark:border-stone-800 cursor-pointer',
                       isSameDay(day, new Date()) && 'bg-indigo-50/20 dark:bg-indigo-950/10'
                     )}
-                    style={{ minHeight: TOTAL_HOURS * HOUR_HEIGHT, height: TOTAL_HOURS * HOUR_HEIGHT }}
+                    style={{ minHeight: TOTAL_HOURS * HOUR_HEIGHT, height: TOTAL_HOURS * HOUR_HEIGHT, minWidth: 120 }}
                     onClick={(e) => handleGridClick(day, e)}
                   >
                     {/* Hour lines */}
@@ -324,20 +505,26 @@ export default function CalendarView() {
                       </div>
                     )}
 
-                    {/* Events */}
+                    {/* Events — side-by-side layout for overlaps */}
                     <div className="absolute inset-0 pointer-events-none">
-                      {events
-                        .filter(ev => isSameDay(parseISO(ev.startDatetime), day))
-                        .map(ev => (
-                          <div key={ev.id} className="pointer-events-auto">
-                            <EventBlock
-                              event={ev}
-                              columnWidth={100}
-                              onDelete={handleDeleteEvent}
-                              onEdit={setEditingEvent}
-                            />
-                          </div>
-                        ))}
+                      {(() => {
+                        const dayEvents = events.filter(ev => !ev.isAllDay && isSameDay(parseISO(ev.startDatetime), day))
+                        const layout = computeOverlapLayout(dayEvents)
+                        return dayEvents.map(ev => {
+                          const { column, totalColumns } = layout.get(ev.id) ?? { column: 0, totalColumns: 1 }
+                          return (
+                            <div key={ev.id} className="pointer-events-auto">
+                              <EventBlock
+                                event={ev}
+                                column={column}
+                                totalColumns={totalColumns}
+                                onDelete={handleDeleteEvent}
+                                onEdit={setEditingEvent}
+                              />
+                            </div>
+                          )
+                        })
+                      })()}
                       {timeboxedTasks
                         .filter(t => t.timeboxStart && isSameDay(parseISO(t.timeboxStart), day))
                         .map(t => (
@@ -347,6 +534,7 @@ export default function CalendarView() {
                   </div>
                 ))}
               </div>
+
             </div>
           </div>
         </div>
@@ -365,7 +553,6 @@ export default function CalendarView() {
 }
 
 function MonthView({ days, currentDate, tasks, events }: { days: Date[], currentDate: Date, tasks: Task[], events: CalendarEvent[] }) {
-  // Suppress unused param — days prop is kept for API consistency but month view recomputes its own grid
   void days
 
   const monthStart = startOfMonth(currentDate)
@@ -396,7 +583,7 @@ function MonthView({ days, currentDate, tasks, events }: { days: Date[], current
           {week.map((d, di) => {
             const isCurrentMonth = d.getMonth() === currentDate.getMonth()
             const isToday = isSameDay(d, new Date())
-            const dayEvents = events.filter(e => isSameDay(parseISO(e.startDatetime), d))
+            const dayEvents = events.filter(e => isSameDay(parseISO(e.startDatetime), d) && e.status !== 'cancelled')
             const dayTasks = tasks.filter(t => t.scheduledDate === format(d, 'yyyy-MM-dd'))
             return (
               <div key={di} className={cn('p-1 border-r border-stone-200 dark:border-stone-800 min-h-[100px]', !isCurrentMonth && 'bg-stone-50 dark:bg-stone-900/50')}>
@@ -405,7 +592,15 @@ function MonthView({ days, currentDate, tasks, events }: { days: Date[], current
                 </span>
                 <div className="space-y-0.5">
                   {dayEvents.slice(0, 2).map(e => (
-                    <div key={e.id} className="text-xs px-1 rounded truncate" style={{ backgroundColor: (e.calendar?.color || '#6366f1') + '22', color: e.calendar?.color || '#6366f1' }}>
+                    <div
+                      key={e.id}
+                      className="text-xs px-1 rounded truncate"
+                      style={{
+                        backgroundColor: (e.calendar?.color || '#6366f1') + '22',
+                        color: e.status === 'tentative' ? (e.calendar?.color || '#6366f1') + 'aa' : (e.calendar?.color || '#6366f1'),
+                        opacity: e.status === 'cancelled' ? 0.5 : 1,
+                      }}
+                    >
                       {e.title}
                     </div>
                   ))}

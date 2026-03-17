@@ -9,7 +9,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params
     const existing = await prisma.calendarEvent.findFirst({ where: { id, userId: auth.userId } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    const { title, description, location, startDatetime, endDatetime, isAllDay, color, calendarId, channelId } = await req.json()
+    const { title, description, location, startDatetime, endDatetime, isAllDay, color, calendarId, channelId, status, isCompleted, completedAt } = await req.json()
     const event = await prisma.calendarEvent.update({
       where: { id },
       data: {
@@ -22,6 +22,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(color !== undefined && { color }),
         ...(calendarId !== undefined && { calendarId }),
         ...(channelId !== undefined && { channelId }),
+        ...(status !== undefined && { status }),
+        ...(isCompleted !== undefined && { isCompleted }),
+        ...(completedAt !== undefined && { completedAt: completedAt ? new Date(completedAt) : null }),
       },
       include: { calendar: true, channel: true },
     })

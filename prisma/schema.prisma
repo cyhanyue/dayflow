@@ -124,6 +124,10 @@ model CalendarEvent {
   isAllDay       Boolean   @default(false)
   color          String?
   recurrenceRule String?
+  uid            String?   // iCal UID — used to detect moved events
+  status         String    @default("confirmed")
+  isCompleted    Boolean   @default(false)
+  completedAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

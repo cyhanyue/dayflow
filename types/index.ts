@@ -81,6 +81,9 @@ export interface CalendarEvent {
   endDatetime: string
   isAllDay: boolean
   color: string | null
+  status: string  // 'confirmed' | 'tentative' | 'cancelled'
+  isCompleted: boolean
+  completedAt: string | null
   calendar?: Calendar
   channel?: Channel | null
 }

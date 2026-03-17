@@ -20,7 +20,7 @@ import TaskCard from '../task/TaskCard'
 export default function KanbanBoard() {
   const {
     tasks, setTasks, activeTaskId, currentWeekStart,
-    setCurrentWeekStart, setBacklogOpen, updateTask,
+    setCurrentWeekStart, setBacklogOpen, updateTask, syncKey,
   } = useAppStore()
   const [loading, setLoading] = useState(true)
   const [activeCard, setActiveCard] = useState<Task | null>(null)
@@ -48,7 +48,9 @@ export default function KanbanBoard() {
     setLoading(false)
   }, [dateStrings.join(','), setTasks])
 
-  useEffect(() => { loadTasks() }, [loadTasks])
+  // Re-load whenever week changes OR a background sync completes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadTasks() }, [loadTasks, syncKey])
 
   // Scroll today's column into view on mount
   useEffect(() => {

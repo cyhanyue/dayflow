@@ -13,18 +13,26 @@ interface Props {
 }
 
 export default function TaskCard({ task, isDragging }: Props) {
-  const { setActiveTaskId, updateTask, activeTimerTaskId, timerStartedAt, startTimer, stopTimer } = useAppStore()
+  const {
+    setActiveTaskId, updateTask,
+    activeTimerTaskId, timerStartedAt, timerAccumulatedMs,
+    startTimer, stopTimer,
+  } = useAppStore()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortDragging } = useSortable({ id: task.id })
   const isTimerRunning = activeTimerTaskId === task.id
   const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => {
-    if (!isTimerRunning || !timerStartedAt) { setElapsed(0); return }
-    const interval = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - timerStartedAt) / 1000))
-    }, 1000)
+    if (!isTimerRunning) { setElapsed(0); return }
+    const tick = () => {
+      const base = isTimerRunning ? timerAccumulatedMs : 0
+      const live = timerStartedAt ? Date.now() - timerStartedAt : 0
+      setElapsed(Math.floor((base + live) / 1000))
+    }
+    tick()
+    const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [isTimerRunning, timerStartedAt])
+  }, [isTimerRunning, timerStartedAt, timerAccumulatedMs])
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -44,26 +52,16 @@ export default function TaskCard({ task, isDragging }: Props) {
     })
   }
 
-  async function handleTimerToggle(e: React.MouseEvent) {
+  async function handleTimerStart(e: React.MouseEvent) {
     e.stopPropagation()
-    if (isTimerRunning) {
-      const durationMinutes = Math.round((Date.now() - (timerStartedAt ?? Date.now())) / 60000)
-      const newActual = (task.actualTimeMinutes || 0) + durationMinutes
-      updateTask(task.id, { actualTimeMinutes: newActual })
-      await fetch(`/api/tasks/${task.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actualTimeMinutes: newActual }),
-      })
-      stopTimer()
-    } else {
-      startTimer(task.id)
-    }
+    startTimer(task.id, task.title)
   }
 
   const elapsedMins = Math.floor(elapsed / 60)
   const elapsedSecs = elapsed % 60
   const elapsedDisplay = `${String(elapsedMins).padStart(2, '0')}:${String(elapsedSecs).padStart(2, '0')}`
+
+  void stopTimer // used in FloatingTimer, not here
 
   return (
     <div
@@ -112,20 +110,12 @@ export default function TaskCard({ task, isDragging }: Props) {
         </div>
       </div>
 
-      {task.status !== 'complete' && (
+      {task.status !== 'complete' && !isTimerRunning && (
         <button
-          onClick={handleTimerToggle}
-          className={cn(
-            'flex-shrink-0 p-1 rounded transition-all',
-            isTimerRunning
-              ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30'
-              : 'text-stone-300 dark:text-stone-600 opacity-0 group-hover:opacity-100 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30'
-          )}
+          onClick={handleTimerStart}
+          className="flex-shrink-0 p-1 rounded transition-all text-stone-300 dark:text-stone-600 opacity-0 group-hover:opacity-100 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
         >
-          {isTimerRunning
-            ? <Square size={11} fill="currentColor" />
-            : <Play size={11} fill="currentColor" />
-          }
+          <Play size={11} fill="currentColor" />
         </button>
       )}
     </div>

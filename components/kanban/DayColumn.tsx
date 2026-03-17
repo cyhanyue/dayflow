@@ -1,12 +1,12 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { format, isToday, parseISO, differenceInMinutes } from 'date-fns'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useAppStore } from '@/store/useAppStore'
 import { Task, CalendarEvent } from '@/types'
 import { cn, minutesToHours } from '@/lib/utils'
-import { Plus, Calendar } from 'lucide-react'
+import { Plus, Calendar, Check } from 'lucide-react'
 import TaskCard from '../task/TaskCard'
 
 const TIME_OPTIONS = [
@@ -35,20 +35,67 @@ interface Props {
 
 function EventChipDroppable({ event }: { event: CalendarEvent }) {
   const { setNodeRef, isOver } = useDroppable({ id: event.id })
-  const color = event.calendar?.color || '#4285f4'
+  const { updateEvent } = useAppStore()
+  const [completed, setCompleted] = useState(event.isCompleted)
+  // Keep in sync if parent re-fetches
+  useEffect(() => setCompleted(event.isCompleted), [event.isCompleted])
+
+  const baseColor = event.calendar?.color || event.channel?.color || '#4285f4'
+  const isTentative = event.status === 'tentative'
+  const color = baseColor
   const start = parseISO(event.startDatetime)
   const end = parseISO(event.endDatetime)
   const durationMins = differenceInMinutes(end, start)
 
+  async function toggleComplete(e: React.MouseEvent) {
+    e.stopPropagation()
+    const newCompleted = !completed
+    setCompleted(newCompleted) // instant UI update
+    const completedAt = newCompleted ? new Date().toISOString() : null
+    updateEvent(event.id, { isCompleted: newCompleted, completedAt })
+    await fetch(`/api/events/${event.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isCompleted: newCompleted, completedAt }),
+    })
+  }
+
   return (
     <div
       ref={setNodeRef}
-      className={cn('flex items-start gap-2 px-2.5 py-1.5 rounded-lg border text-xs select-none transition-colors', isOver && 'brightness-95')}
-      style={{ backgroundColor: color + '14', borderColor: color + '40', borderLeftColor: color, borderLeftWidth: 3 }}
+      className={cn(
+        'flex items-start gap-2 px-2.5 py-1.5 rounded-lg border text-xs select-none transition-colors',
+        isOver && 'brightness-95',
+        completed && 'opacity-60',
+        isTentative && 'opacity-80'
+      )}
+      style={{
+        backgroundColor: color + '14',
+        borderColor: color + '40',
+        borderLeftColor: color,
+        borderLeftWidth: 3,
+        borderLeftStyle: isTentative ? 'dashed' : 'solid',
+      }}
     >
+      {/* Complete button */}
+      <button
+        onClick={toggleComplete}
+        className={cn(
+          'flex-shrink-0 mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors',
+          completed
+            ? 'bg-emerald-500 border-emerald-500 text-white'
+            : 'border-stone-300 dark:border-stone-600 hover:border-emerald-400'
+        )}
+      >
+        {completed && <Check size={10} strokeWidth={3} />}
+      </button>
+
       <Calendar size={11} className="flex-shrink-0 mt-0.5" style={{ color }} />
       <div className="flex-1 min-w-0">
-        <p className="font-medium break-words" style={{ color }}>{event.title}</p>
+        <p className={cn('font-medium break-words', completed && 'line-through')} style={{ color }}>
+          {event.title}
+          {isTentative && <span className="ml-1 opacity-60 font-normal">(tentative)</span>}
+        </p>
         {!event.isAllDay && (
           <p className="opacity-60 mt-0.5" style={{ color }}>
             {format(start, 'h:mm a')}
@@ -75,9 +122,11 @@ export function buildMergedItems(tasks: Task[], events: CalendarEvent[]): Combin
   ].sort((a, b) => a.position - b.position)
 }
 
-export default function DayColumn({ date, dateStr, tasks, events, loading }: Props) {
+export default function DayColumn({ date, dateStr, tasks, events: allEvents, loading }: Props) {
   const { isOver: isColOver, setNodeRef: setColRef } = useDroppable({ id: dateStr })
   const { addTask } = useAppStore()
+  // Only show confirmed events on Home (filter out cancelled)
+  const events = allEvents.filter(e => !e.status || e.status === 'confirmed' || e.status === 'tentative')
   const [addingTask, setAddingTask] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newMinutes, setNewMinutes] = useState<number | null>(null)
