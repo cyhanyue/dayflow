@@ -50,28 +50,40 @@ function getColors(mins: number, progress: number) {
   }
 }
 
-// Draw the current timer state onto a canvas for the Video PiP stream
+const PIP_W = 260  // logical px
+const PIP_H = 52   // logical px (+ 3px progress bar if planned)
+
+// Draw the current timer state onto a canvas for the Video PiP stream.
+// ctx is already scaled by DPR — draw at logical coordinates.
 function drawTimerCanvas(
   ctx: CanvasRenderingContext2D,
   w: number, h: number,
-  emoji: string, title: string, elapsedStr: string, message: string,
+  emoji: string, title: string, elapsedStr: string,
   bgSolid: string, timerColor: string, subColor: string,
   plannedStr: string | null, progress: number, barColor: string, barBgColor: string,
 ) {
   ctx.clearRect(0, 0, w, h)
 
-  // Background
+  // Rounded background
+  const r = 12
   ctx.fillStyle = bgSolid
-  ctx.fillRect(0, 0, w, h)
+  ctx.beginPath()
+  ctx.moveTo(r, 0); ctx.lineTo(w - r, 0)
+  ctx.arcTo(w, 0, w, r, r); ctx.lineTo(w, h - r)
+  ctx.arcTo(w, h, w - r, h, r); ctx.lineTo(r, h)
+  ctx.arcTo(0, h, 0, h - r, r); ctx.lineTo(0, r)
+  ctx.arcTo(0, 0, r, 0, r)
+  ctx.closePath()
+  ctx.fill()
 
   // Emoji
-  ctx.font = '28px serif'
-  ctx.fillText(emoji, 14, 38)
+  ctx.font = '20px serif'
+  ctx.fillText(emoji, 12, 32)
 
-  // Task title
+  // Task title (truncated)
   ctx.fillStyle = timerColor
-  ctx.font = 'bold 15px system-ui, sans-serif'
-  const maxTitleWidth = w - 130
+  ctx.font = 'bold 13px -apple-system, system-ui, sans-serif'
+  const maxTitleWidth = w - 104
   let displayTitle = title
   if (ctx.measureText(displayTitle).width > maxTitleWidth) {
     while (ctx.measureText(displayTitle + '…').width > maxTitleWidth && displayTitle.length > 0) {
@@ -79,39 +91,29 @@ function drawTimerCanvas(
     }
     displayTitle += '…'
   }
-  ctx.fillText(displayTitle, 50, 28)
+  ctx.fillText(displayTitle, 38, 24)
 
-  // Message
-  ctx.fillStyle = subColor
-  ctx.font = '12px system-ui, sans-serif'
-  ctx.fillText(message, 50, 46)
-
-  // Divider
-  ctx.fillStyle = 'rgba(255,255,255,0.25)'
-  ctx.fillRect(w - 100, 12, 1, 36)
-
-  // Elapsed time
-  ctx.fillStyle = timerColor
-  ctx.font = 'bold 26px monospace'
-  ctx.textAlign = 'right'
-  ctx.fillText(elapsedStr, w - 14, 36)
-
-  // Planned time
+  // Planned label below title
   if (plannedStr) {
     ctx.fillStyle = subColor
-    ctx.font = '12px system-ui, sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(`/ ${plannedStr}`, w - 57, 52)
+    ctx.font = '10px -apple-system, system-ui, sans-serif'
+    ctx.fillText(`/ ${plannedStr}`, 38, 38)
   }
+
+  // Elapsed time (right-aligned, large monospace)
+  ctx.fillStyle = timerColor
+  ctx.font = 'bold 22px ui-monospace, monospace'
+  ctx.textAlign = 'right'
+  ctx.fillText(elapsedStr, w - 12, 32)
 
   ctx.textAlign = 'left'
 
   // Progress bar
   if (plannedStr) {
     ctx.fillStyle = barBgColor
-    ctx.fillRect(0, h - 4, w, 4)
+    ctx.fillRect(0, h - 3, w, 3)
     ctx.fillStyle = barColor
-    ctx.fillRect(0, h - 4, w * Math.min(1, progress), 4)
+    ctx.fillRect(0, h - 3, w * Math.min(1, progress), 3)
   }
 }
 
@@ -210,7 +212,7 @@ export default function FloatingTimer() {
   // Timer inactive — render nothing (but keep hidden canvas/video in DOM for PiP setup)
   if (!activeTimerTaskId) return (
     <>
-      <canvas ref={canvasRef} width={380} height={64} style={{ display: 'none' }} />
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
       <video ref={videoRef} style={{ display: 'none' }} muted playsInline />
     </>
   )
@@ -232,12 +234,11 @@ export default function FloatingTimer() {
 
   // Keep canvas in sync with timer state (drives the Video PiP display)
   if (canvasRef.current && isPipActive) {
+    const pipH = PIP_H + (plannedStr ? 3 : 0)
     const ctx = canvasRef.current.getContext('2d')
-    if (ctx) {
-      drawTimerCanvas(ctx, 380, 64, emoji, title, elapsedStr, message,
-        colors.bgSolid, colors.timer, colors.sub,
-        plannedStr, progress, colors.bar, colors.barBg)
-    }
+    if (ctx) drawTimerCanvas(ctx, PIP_W, pipH, emoji, title, elapsedStr,
+      colors.bgSolid, colors.timer, colors.sub,
+      plannedStr, progress, colors.bar, colors.barBg)
   }
 
   async function handleStop() {
@@ -261,10 +262,12 @@ export default function FloatingTimer() {
       return
     }
     try {
-      // Draw initial frame before streaming
+      const pipH = PIP_H + (plannedStr ? 3 : 0)
+      canvasRef.current.width = PIP_W
+      canvasRef.current.height = pipH
       const ctx = canvasRef.current.getContext('2d')
       if (ctx) {
-        drawTimerCanvas(ctx, 380, 64, emoji, title, elapsedStr, message,
+        drawTimerCanvas(ctx, PIP_W, pipH, emoji, title, elapsedStr,
           colors.bgSolid, colors.timer, colors.sub,
           plannedStr, progress, colors.bar, colors.barBg)
       }
@@ -283,7 +286,7 @@ export default function FloatingTimer() {
   if (isTimerPaused) {
     return (
       <>
-        <canvas ref={canvasRef} width={380} height={64} style={{ display: 'none' }} />
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
         <video ref={videoRef} style={{ display: 'none' }} muted playsInline />
         <div
           style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 99999, userSelect: 'none' }}
@@ -302,7 +305,7 @@ export default function FloatingTimer() {
   return (
     <>
       {/* Hidden canvas + video — power the native Video PiP stream */}
-      <canvas ref={canvasRef} width={380} height={64} style={{ display: 'none' }} />
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
       <video ref={videoRef} style={{ display: 'none' }} muted playsInline />
 
       {/* In-page floating timer */}

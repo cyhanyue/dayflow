@@ -1,40 +1,14 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useAppStore } from '@/store/useAppStore'
 import { RefreshCw, CheckCircle2 } from 'lucide-react'
 
 export default function SettingsPage() {
   const { user, setUser } = useAppStore()
-  const [syncing, setSyncing] = useState(false)
-  const [syncMsg, setSyncMsg] = useState<string | null>(null)
-  const [disconnecting, setDisconnecting] = useState(false)
   const [icalUrl, setIcalUrl] = useState('')
   const [icalSyncing, setIcalSyncing] = useState(false)
   const [icalMsg, setIcalMsg] = useState<string | null>(null)
   const [icalDisconnecting, setIcalDisconnecting] = useState(false)
-
-  const handleSync = useCallback(async () => {
-    setSyncing(true)
-    const res = await fetch('/api/calendars/google/sync', { method: 'POST' })
-    const data = await res.json()
-    setSyncing(false)
-    setSyncMsg(res.ok ? `Synced ${data.synced} events` : (data.error || 'Sync failed'))
-    if (res.ok) {
-      const me = await fetch('/api/auth/me').then(r => r.json())
-      setUser(me)
-    }
-  }, [setUser])
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('google') === 'connected') {
-      window.history.replaceState({}, '', '/settings')
-      handleSync()
-    } else if (params.get('google') === 'error') {
-      window.history.replaceState({}, '', '/settings')
-      setSyncMsg('Connection failed — please try again.')
-    }
-  }, [handleSync])
 
   async function toggleTheme() {
     const newTheme = user?.theme === 'dark' ? 'light' : 'dark'
@@ -77,15 +51,6 @@ export default function SettingsPage() {
     setUser(me)
   }
 
-  async function handleDisconnect() {
-    setDisconnecting(true)
-    await fetch('/api/calendars/google/disconnect', { method: 'POST' })
-    setDisconnecting(false)
-    setSyncMsg(null)
-    const me = await fetch('/api/auth/me').then(r => r.json())
-    setUser(me)
-  }
-
   return (
     <div className="flex-1 overflow-y-auto p-8 max-w-2xl">
       <h1 className="text-xl font-semibold mb-6 text-stone-900 dark:text-stone-100">Settings</h1>
@@ -108,73 +73,6 @@ export default function SettingsPage() {
 
       <section className="mb-8">
         <h2 className="text-sm font-medium text-stone-500 uppercase tracking-wider mb-4">Integrations</h2>
-        <div className="py-3 border-b border-stone-100 dark:border-stone-800">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center flex-shrink-0">
-                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none">
-                  <rect x="3" y="4" width="18" height="17" rx="2" stroke="#4285f4" strokeWidth="1.5" />
-                  <path d="M3 9h18" stroke="#4285f4" strokeWidth="1.5" />
-                  <path d="M8 2v4M16 2v4" stroke="#4285f4" strokeWidth="1.5" strokeLinecap="round" />
-                  <text x="12" y="19" textAnchor="middle" fill="#4285f4" fontSize="7" fontWeight="bold">G</text>
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-stone-800 dark:text-stone-200">Google Calendar</p>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  {user?.googleConnected ? (
-                    <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                      <CheckCircle2 size={11} /> Connected
-                    </span>
-                  ) : (
-                    'Import events from your Google Calendar'
-                  )}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {user?.googleConnected ? (
-                <>
-                  <button
-                    onClick={handleSync}
-                    disabled={syncing}
-                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors disabled:opacity-50"
-                  >
-                    <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} />
-                    {syncing ? 'Syncing…' : 'Sync now'}
-                  </button>
-                  <button
-                    onClick={handleDisconnect}
-                    disabled={disconnecting}
-                    className="text-xs px-3 py-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
-                  >
-                    Disconnect
-                  </button>
-                </>
-              ) : (
-                <a
-                  href="/api/auth/google"
-                  className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-                >
-                  Connect
-                </a>
-              )}
-            </div>
-          </div>
-
-          {syncMsg && (
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-2 ml-11">{syncMsg}</p>
-          )}
-
-          {!user?.googleConnected && (
-            <p className="text-xs text-stone-400 mt-2 ml-11">
-              Requires <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">GOOGLE_CLIENT_ID</code>,{' '}
-              <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">GOOGLE_CLIENT_SECRET</code>, and{' '}
-              <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">GOOGLE_REDIRECT_URI</code> in your .env file.
-            </p>
-          )}
-        </div>
 
         {/* iCal / ICS URL */}
         <div className="py-3 border-b border-stone-100 dark:border-stone-800">

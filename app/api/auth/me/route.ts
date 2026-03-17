@@ -11,26 +11,36 @@ const SELECT = {
 }
 
 export async function GET() {
-  const auth = await getAuthUser()
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const user = await prisma.user.findUnique({ where: { id: auth.userId }, select: SELECT })
-  if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  const { googleRefreshToken, icalUrl, ...rest } = user
-  return NextResponse.json({ ...rest, googleConnected: !!googleRefreshToken, icalConnected: !!icalUrl })
+  try {
+    const auth = await getAuthUser()
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await prisma.user.findUnique({ where: { id: auth.userId }, select: SELECT })
+    if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const { googleRefreshToken, icalUrl, ...rest } = user
+    return NextResponse.json({ ...rest, googleConnected: !!googleRefreshToken, icalConnected: !!icalUrl })
+  } catch (err) {
+    console.error('GET /api/auth/me error:', err)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  }
 }
 
 export async function PATCH(req: NextRequest) {
-  const auth = await getAuthUser()
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const data = await req.json()
-  const allowedKeys = ['name', 'theme', 'timeIncrement', 'autoRolloverIncompleteTasks',
-    'rolloverPosition', 'hideCompletedTasksToday', 'autoArchiveAfterDays', 'calendarEventColoring']
-  const filtered = Object.fromEntries(Object.entries(data).filter(([k]) => allowedKeys.includes(k)))
-  const user = await prisma.user.update({
-    where: { id: auth.userId },
-    data: filtered,
-    select: SELECT,
-  })
-  const { googleRefreshToken, icalUrl, ...rest } = user
-  return NextResponse.json({ ...rest, googleConnected: !!googleRefreshToken, icalConnected: !!icalUrl })
+  try {
+    const auth = await getAuthUser()
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const data = await req.json()
+    const allowedKeys = ['name', 'theme', 'timeIncrement', 'autoRolloverIncompleteTasks',
+      'rolloverPosition', 'hideCompletedTasksToday', 'autoArchiveAfterDays', 'calendarEventColoring']
+    const filtered = Object.fromEntries(Object.entries(data).filter(([k]) => allowedKeys.includes(k)))
+    const user = await prisma.user.update({
+      where: { id: auth.userId },
+      data: filtered,
+      select: SELECT,
+    })
+    const { googleRefreshToken, icalUrl, ...rest } = user
+    return NextResponse.json({ ...rest, googleConnected: !!googleRefreshToken, icalConnected: !!icalUrl })
+  } catch (err) {
+    console.error('PATCH /api/auth/me error:', err)
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  }
 }

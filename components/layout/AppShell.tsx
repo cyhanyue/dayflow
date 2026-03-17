@@ -17,12 +17,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     ]).then(([u, channels, contexts, calendars]) => {
       if (u) {
         setUser(u)
-        // Sync calendars on app load
-        if (u.googleConnected) {
-          fetch('/api/calendars/google/sync', { method: 'POST' })
-            .then(() => bumpSyncKey())
-            .catch(() => {})
-        }
         if (u.icalConnected) {
           fetch('/api/calendars/ical/sync', { method: 'POST' })
             .then(() => bumpSyncKey())
@@ -35,24 +29,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }).catch(err => console.error('Failed to load app data:', err))
   }, [setUser, setChannels, setContexts, setCalendars, bumpSyncKey])
 
-  // Periodic sync every 15 minutes
+  // Periodic iCal sync every 15 minutes
   useEffect(() => {
-    if (!user) return
+    if (!user?.icalConnected) return
     const interval = setInterval(async () => {
       try {
-        if (user.googleConnected) {
-          await fetch('/api/calendars/google/sync', { method: 'POST' })
-        }
-        if (user.icalConnected) {
-          await fetch('/api/calendars/ical/sync', { method: 'POST' })
-        }
+        await fetch('/api/calendars/ical/sync', { method: 'POST' })
         bumpSyncKey()
       } catch {
         // Silent fail — next interval will retry
       }
     }, 15 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [user, bumpSyncKey])
+  }, [user?.icalConnected, bumpSyncKey])
 
   useEffect(() => {
     if (user?.theme === 'dark') {
