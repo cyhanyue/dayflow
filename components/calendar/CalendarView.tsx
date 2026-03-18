@@ -4,7 +4,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { format, addDays, startOfWeek, addHours, differenceInMinutes, parseISO, isSameDay, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { CalendarEvent, Task } from '@/types'
 import { cn } from '@/lib/utils'
-import { ChevronLeft, ChevronRight, X, Globe } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Globe, Clock, MapPin, User, Users, AlignLeft, Calendar as CalendarIcon } from 'lucide-react'
 
 const HOUR_HEIGHT = 64 // px per hour
 const START_HOUR = 0
@@ -128,11 +128,9 @@ function EventBlock({ event, column, totalColumns, onDelete, onEdit }: EventBloc
   const end = parseISO(event.endDatetime)
   const top = timeToY(start)
   const height = durationToHeight(start, end)
-  const baseColor = event.channel?.color || event.calendar?.color || '#6366f1'
-
   const isCancelled = event.status === 'cancelled'
   const isTentative = event.status === 'tentative'
-  const color = isCancelled ? '#9ca3af' : baseColor
+  const color = isCancelled ? '#9ca3af' : '#a78bfa'
   const bgOpacity = isCancelled ? '11' : isTentative ? '10' : '22'
   const borderStyle = isTentative ? 'dashed' : 'solid'
 
@@ -151,7 +149,7 @@ function EventBlock({ event, column, totalColumns, onDelete, onEdit }: EventBloc
         borderLeft: `3px ${borderStyle} ${color}`,
         opacity: isCancelled ? 0.5 : 1,
       }}
-      onClick={() => onEdit(event)}
+      onClick={e => { e.stopPropagation(); onEdit(event) }}
     >
       <p className={cn('text-xs font-medium truncate', isCancelled && 'line-through')} style={{ color }}>{event.title}</p>
       <p className="text-xs opacity-60" style={{ color }}>
@@ -178,7 +176,7 @@ function TaskBlock({ task }: TaskBlockProps) {
   const end = parseISO(task.timeboxEnd)
   const top = timeToY(start)
   const height = durationToHeight(start, end)
-  const color = task.channel?.color || '#6366f1'
+  const color = '#a78bfa'
 
   return (
     <div
@@ -192,6 +190,110 @@ function TaskBlock({ task }: TaskBlockProps) {
       }}
     >
       <p className="text-xs font-medium truncate" style={{ color }}>{task.title}</p>
+    </div>
+  )
+}
+
+interface EventDetailModalProps {
+  event: CalendarEvent
+  onClose: () => void
+  onDelete: (id: string) => void
+}
+
+function EventDetailModal({ event, onClose, onDelete }: EventDetailModalProps) {
+  const start = parseISO(event.startDatetime)
+  const end = parseISO(event.endDatetime)
+  const color = event.channel?.color || event.calendar?.color || '#6366f1'
+  const isSameDay_ = isSameDay(start, end) || (end.getHours() === 0 && end.getMinutes() === 0 && differenceInMinutes(end, start) <= 1440)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="bg-white dark:bg-stone-900 rounded-xl shadow-xl w-80 overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Color bar */}
+        <div className="h-1.5" style={{ backgroundColor: color }} />
+        <div className="p-5">
+          {/* Title row */}
+          <div className="flex items-start justify-between gap-2 mb-4">
+            <h3 className="text-sm font-semibold text-stone-800 dark:text-stone-200 leading-snug">{event.title}</h3>
+            <button onClick={onClose} className="flex-shrink-0 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors mt-0.5">
+              <X size={14} />
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {/* Time */}
+            <div className="flex items-start gap-2 text-xs text-stone-600 dark:text-stone-400">
+              <Clock size={13} className="flex-shrink-0 mt-0.5" />
+              <div>
+                <span>{format(start, 'EEEE, MMMM d')}</span>
+                {!event.isAllDay && (
+                  <span className="ml-1 text-stone-500">
+                    {isSameDay_ ? `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}` : `${format(start, 'h:mm a')} – ${format(end, 'MMM d, h:mm a')}`}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Location */}
+            {event.location && (
+              <div className="flex items-start gap-2 text-xs text-stone-600 dark:text-stone-400">
+                <MapPin size={13} className="flex-shrink-0 mt-0.5" />
+                <span className="break-words">{event.location}</span>
+              </div>
+            )}
+
+            {/* Organizer */}
+            {event.organizer && (
+              <div className="flex items-center gap-2 text-xs text-stone-600 dark:text-stone-400">
+                <User size={13} className="flex-shrink-0" />
+                <span>{event.organizer}</span>
+              </div>
+            )}
+
+            {/* Attendees */}
+            {event.attendees && event.attendees.length > 0 && (
+              <div className="flex items-start gap-2 text-xs text-stone-600 dark:text-stone-400">
+                <Users size={13} className="flex-shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-0.5">
+                  {event.attendees.slice(0, 8).map((a, i) => (
+                    <span key={i}>{a}</span>
+                  ))}
+                  {event.attendees.length > 8 && (
+                    <span className="text-stone-400">+{event.attendees.length - 8} more</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Description */}
+            {event.description && (
+              <div className="flex items-start gap-2 text-xs text-stone-500 dark:text-stone-500">
+                <AlignLeft size={13} className="flex-shrink-0 mt-0.5" />
+                <span className="whitespace-pre-wrap line-clamp-5 break-words">{event.description}</span>
+              </div>
+            )}
+
+            {/* Calendar */}
+            {event.calendar && (
+              <div className="flex items-center gap-1.5 text-xs text-stone-400 pt-1">
+                <CalendarIcon size={12} className="flex-shrink-0" />
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: event.calendar.color }} />
+                <span>{event.calendar.name}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Delete button */}
+          <div className="mt-4 pt-3 border-t border-stone-100 dark:border-stone-800 flex justify-end">
+            <button
+              onClick={() => { onDelete(event.id); onClose() }}
+              className="text-xs px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -256,7 +358,7 @@ export default function CalendarView() {
   const [showExtraTimezones, setShowExtraTimezones] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  void editingEvent
+  // editingEvent is rendered as EventDetailModal below
 
   const primaryTzId = getUserPrimaryTzId()
   const extraTimezones = US_TIMEZONES.filter(tz => tz.id !== primaryTzId)
@@ -540,6 +642,15 @@ export default function CalendarView() {
         </div>
       )}
 
+      {/* Event detail modal */}
+      {editingEvent && (
+        <EventDetailModal
+          event={editingEvent}
+          onClose={() => setEditingEvent(null)}
+          onDelete={handleDeleteEvent}
+        />
+      )}
+
       {/* New event modal */}
       {newEventSlot && (
         <NewEventModal
@@ -596,8 +707,8 @@ function MonthView({ days, currentDate, tasks, events }: { days: Date[], current
                       key={e.id}
                       className="text-xs px-1 rounded truncate"
                       style={{
-                        backgroundColor: (e.calendar?.color || '#6366f1') + '22',
-                        color: e.status === 'tentative' ? (e.calendar?.color || '#6366f1') + 'aa' : (e.calendar?.color || '#6366f1'),
+                        backgroundColor: '#a78bfa22',
+                        color: e.status === 'tentative' ? '#a78bfaaa' : '#a78bfa',
                         opacity: e.status === 'cancelled' ? 0.5 : 1,
                       }}
                     >

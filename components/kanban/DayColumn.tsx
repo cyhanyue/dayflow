@@ -31,6 +31,7 @@ interface Props {
   tasks: Task[]
   events: CalendarEvent[]
   loading: boolean
+  isDragTarget?: boolean
 }
 
 function EventChipDroppable({ event }: { event: CalendarEvent }) {
@@ -40,9 +41,8 @@ function EventChipDroppable({ event }: { event: CalendarEvent }) {
   // Keep in sync if parent re-fetches
   useEffect(() => setCompleted(event.isCompleted), [event.isCompleted])
 
-  const baseColor = event.calendar?.color || event.channel?.color || '#4285f4'
   const isTentative = event.status === 'tentative'
-  const color = baseColor
+  const color = '#a78bfa'
   const start = parseISO(event.startDatetime)
   const end = parseISO(event.endDatetime)
   const durationMins = differenceInMinutes(end, start)
@@ -83,8 +83,8 @@ function EventChipDroppable({ event }: { event: CalendarEvent }) {
         className={cn(
           'flex-shrink-0 mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors',
           completed
-            ? 'bg-emerald-500 border-emerald-500 text-white'
-            : 'border-stone-300 dark:border-stone-600 hover:border-emerald-400'
+            ? 'bg-pink-300 border-pink-300 text-white'
+            : 'border-stone-300 dark:border-stone-600 hover:border-pink-300'
         )}
       >
         {completed && <Check size={10} strokeWidth={3} />}
@@ -122,7 +122,7 @@ export function buildMergedItems(tasks: Task[], events: CalendarEvent[]): Combin
   ].sort((a, b) => a.position - b.position)
 }
 
-export default function DayColumn({ date, dateStr, tasks, events: allEvents, loading }: Props) {
+export default function DayColumn({ date, dateStr, tasks, events: allEvents, loading, isDragTarget }: Props) {
   const { isOver: isColOver, setNodeRef: setColRef } = useDroppable({ id: dateStr })
   const { addTask } = useAppStore()
   // Only show confirmed events on Home (filter out cancelled)
@@ -199,7 +199,7 @@ export default function DayColumn({ date, dateStr, tasks, events: allEvents, loa
       className={cn(
         'flex flex-col min-w-[220px] w-[220px] border-r border-stone-200 dark:border-stone-800 h-full',
         today ? 'bg-indigo-50/30 dark:bg-indigo-950/20' : 'bg-white dark:bg-stone-900',
-        isColOver && 'bg-indigo-50 dark:bg-indigo-950/30'
+        (isColOver || isDragTarget) && 'bg-indigo-50 dark:bg-indigo-950/30 ring-2 ring-inset ring-indigo-300 dark:ring-indigo-700'
       )}
     >
       {/* Column header */}

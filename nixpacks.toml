@@ -1,0 +1,19 @@
+[phases.setup]
+nixPkgs = ["python312", "python312Packages.pip"]
+
+[phases.install]
+dependsOn = ["setup"]
+cmds = [
+  "npm install",
+  "pip install -r requirements.txt"
+]
+
+[phases.build]
+dependsOn = ["install"]
+cmds = [
+  "npx prisma generate",
+  "next build"
+]
+
+[start]
+cmd = "npx prisma db push --accept-data-loss && next start -p ${PORT:-3000}"

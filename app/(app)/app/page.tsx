@@ -3,10 +3,8 @@ import TodayCalendarPanel from '@/components/calendar/TodayCalendarPanel'
 
 export default function AppPage() {
   return (
-    <div className="flex h-full overflow-hidden">
-      <div className="flex-1 overflow-hidden">
-        <KanbanBoard />
-      </div>
+    <div className="h-full overflow-hidden">
+      <KanbanBoard />
       <TodayCalendarPanel />
     </div>
   )

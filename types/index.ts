@@ -77,6 +77,8 @@ export interface CalendarEvent {
   title: string
   description: string | null
   location: string | null
+  organizer: string | null
+  attendees: string[]
   startDatetime: string
   endDatetime: string
   isAllDay: boolean

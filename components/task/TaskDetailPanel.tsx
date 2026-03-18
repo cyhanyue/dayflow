@@ -303,7 +303,7 @@ export default function TaskDetailPanel() {
                   }}
                   className={cn(
                     'w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0',
-                    sub.status === 'complete' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-stone-300 dark:border-stone-600'
+                    sub.status === 'complete' ? 'bg-pink-300 border-pink-300 text-white' : 'border-stone-300 dark:border-stone-600'
                   )}
                 >
                   {sub.status === 'complete' && <Check size={9} strokeWidth={3} />}

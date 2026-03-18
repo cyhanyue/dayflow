@@ -85,8 +85,8 @@ export default function TaskCard({ task, isDragging }: Props) {
         className={cn(
           'flex-shrink-0 mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors',
           task.status === 'complete'
-            ? 'bg-emerald-500 border-emerald-500 text-white'
-            : 'border-stone-300 dark:border-stone-600 hover:border-emerald-400'
+            ? 'bg-pink-300 border-pink-300 text-white'
+            : 'border-stone-300 dark:border-stone-600 hover:border-pink-300'
         )}
       >
         {task.status === 'complete' && <Check size={10} strokeWidth={3} />}

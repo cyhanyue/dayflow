@@ -98,14 +98,13 @@ export async function GET(req: NextRequest) {
     const recurringMap: Record<string, {
       title: string
       recurrenceRule: string
-      week: { count: number; minutes: number }
-      month: { count: number; minutes: number }
-      quarter: { count: number; minutes: number }
+      week: { count: number; actualMinutes: number; plannedMinutes: number }
+      month: { count: number; actualMinutes: number; plannedMinutes: number }
+      quarter: { count: number; actualMinutes: number; plannedMinutes: number }
     }> = {}
 
     const weekAgo = subDays(now, 6)
     const monthAgo = subDays(now, 29)
-    const quarterAgo = subMonths(now, 3)
 
     for (const task of recurringTasks) {
       if (!task.completedAt || !task.recurrenceRule) continue
@@ -114,25 +113,28 @@ export async function GET(req: NextRequest) {
         recurringMap[key] = {
           title: task.title,
           recurrenceRule: task.recurrenceRule,
-          week: { count: 0, minutes: 0 },
-          month: { count: 0, minutes: 0 },
-          quarter: { count: 0, minutes: 0 },
+          week: { count: 0, actualMinutes: 0, plannedMinutes: 0 },
+          month: { count: 0, actualMinutes: 0, plannedMinutes: 0 },
+          quarter: { count: 0, actualMinutes: 0, plannedMinutes: 0 },
         }
       }
-      const mins = task.actualTimeMinutes ?? task.plannedTimeMinutes ?? 0
+      const actual = task.actualTimeMinutes ?? 0
+      const planned = task.plannedTimeMinutes ?? 0
       const completedAt = task.completedAt
 
-      // Quarter (always in range since we queried from 3 months ago)
       recurringMap[key].quarter.count++
-      recurringMap[key].quarter.minutes += mins
+      recurringMap[key].quarter.actualMinutes += actual
+      recurringMap[key].quarter.plannedMinutes += planned
 
       if (completedAt >= startOfDay(monthAgo)) {
         recurringMap[key].month.count++
-        recurringMap[key].month.minutes += mins
+        recurringMap[key].month.actualMinutes += actual
+        recurringMap[key].month.plannedMinutes += planned
       }
       if (completedAt >= startOfDay(weekAgo)) {
         recurringMap[key].week.count++
-        recurringMap[key].week.minutes += mins
+        recurringMap[key].week.actualMinutes += actual
+        recurringMap[key].week.plannedMinutes += planned
       }
     }
 

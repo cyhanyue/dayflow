@@ -6,11 +6,14 @@ import { addWeeks, subWeeks, isToday, parseISO } from 'date-fns'
 import DayColumn, { buildMergedItems } from './DayColumn'
 import TaskDetailPanel from '../task/TaskDetailPanel'
 import { ChevronLeft, ChevronRight, Archive } from 'lucide-react'
+import DailyBanner from './DailyBanner'
 import {
   DndContext,
   DragEndEvent,
+  DragOverEvent,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
@@ -30,7 +33,11 @@ export default function KanbanBoard() {
   const weekDays = getWeekDays(currentWeekStart)
   const dateStrings = weekDays.map(formatDate)
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  )
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null)
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
@@ -99,9 +106,25 @@ export default function KanbanBoard() {
     }
   }
 
+  function resolveTargetDate(overId: string): string | null {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(overId)) return overId
+    const overTask = tasks.find(t => t.id === overId)
+    if (overTask?.scheduledDate) return overTask.scheduledDate
+    const overEvent = weekEvents.find(e => e.id === overId)
+    if (overEvent) return parseISO(overEvent.startDatetime).toISOString().slice(0, 10)
+    return null
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const { over } = event
+    const date = over ? resolveTargetDate(over.id as string) : null
+    setDragOverDate(date)
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     setActiveCard(null)
+    setDragOverDate(null)
     if (!over) return
 
     const taskId = active.id as string
@@ -109,31 +132,45 @@ export default function KanbanBoard() {
     const task = tasks.find(t => t.id === taskId)
     if (!task) return
 
-    // Cross-column move (over.id is a date string)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(overId)) {
-      if (task.scheduledDate === overId) return
-      updateTask(taskId, { scheduledDate: overId, isBacklog: false })
+    const targetDate = resolveTargetDate(overId)
+    if (!targetDate) return
+
+    const isCrossColumn = task.scheduledDate !== targetDate
+
+    // For cross-column drops onto a task, position after that task in the target column
+    const isDropOnTask = !/^\d{4}-\d{2}-\d{2}$/.test(overId)
+
+    if (isCrossColumn) {
+      let newPos: number
+      if (isDropOnTask) {
+        const targetMerged = getMergedList(targetDate)
+        const overIdx = targetMerged.findIndex(i => i.id === overId)
+        if (overIdx === -1) {
+          newPos = Date.now()
+        } else {
+          const after = targetMerged[overIdx + 1]
+          newPos = after
+            ? (targetMerged[overIdx].position + after.position) / 2
+            : targetMerged[overIdx].position + 1000
+        }
+      } else {
+        // Dropped on empty column area — append at end
+        const targetMerged = getMergedList(targetDate)
+        const last = [...targetMerged].reverse().find(i => i.type === 'task')
+        newPos = last ? last.position + 1000 : 0
+      }
+      updateTask(taskId, { scheduledDate: targetDate, isBacklog: false, sortOrder: newPos })
       await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scheduledDate: overId, isBacklog: false }),
+        body: JSON.stringify({ scheduledDate: targetDate, isBacklog: false, sortOrder: newPos }),
       })
       return
     }
 
-    // Over a task or event — within-column reorder
-    const dateStr = task.scheduledDate
-    if (!dateStr) return
-
-    // Check if over target belongs to same day
-    const overTask = tasks.find(t => t.id === overId)
-    const overEvent = weekEvents.find(e => e.id === overId)
-
-    if (!overTask && !overEvent) return
-    if (overTask && overTask.scheduledDate !== dateStr) return
-    if (overEvent && parseISO(overEvent.startDatetime).toISOString().slice(0, 10) !== dateStr) return
-
-    const newPos = calcNewPosition(dateStr, taskId, overId)
+    // Within-column reorder — only valid when dropping onto a task/event
+    if (!isDropOnTask) return
+    const newPos = calcNewPosition(targetDate, taskId, overId)
     updateTask(taskId, { sortOrder: newPos })
     await fetch(`/api/tasks/${taskId}`, {
       method: 'PATCH',
@@ -144,6 +181,7 @@ export default function KanbanBoard() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <DailyBanner />
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -169,7 +207,7 @@ export default function KanbanBoard() {
       </div>
 
       {/* Columns */}
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragStart={e => setActiveCard(tasks.find(t => t.id === e.active.id) || null)}>
+      <DndContext sensors={sensors} onDragStart={e => setActiveCard(tasks.find(t => t.id === e.active.id) || null)} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => { setActiveCard(null); setDragOverDate(null) }}>
         <div ref={scrollRef} className="flex flex-1 overflow-x-auto overflow-y-hidden min-w-0">
           {weekDays.map((day, i) => (
             <DayColumn
@@ -179,6 +217,7 @@ export default function KanbanBoard() {
               tasks={tasks.filter(t => t.scheduledDate === dateStrings[i] && !t.isArchived && t.parentTaskId === null)}
               events={weekEvents.filter(e => e.startDatetime.slice(0, 10) === dateStrings[i])}
               loading={loading}
+              isDragTarget={dragOverDate === dateStrings[i]}
             />
           ))}
         </div>

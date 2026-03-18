@@ -29,7 +29,7 @@ function ruleLabel(rule: string): string {
 
 export default function LeftSidebar() {
   const pathname = usePathname()
-  const { channels, activeContextId, setActiveContextId, contexts, tasks, setTasks, setActiveTaskId, addTask } = useAppStore()
+  const { activeContextId, setActiveContextId, contexts, tasks, setTasks, setActiveTaskId, addTask } = useAppStore()
   const [collapsed, setCollapsed] = useState(false)
   const [recurringOpen, setRecurringOpen] = useState(true)
   const [recurringTasks, setRecurringTasks] = useState<Task[]>([])
@@ -189,16 +189,7 @@ export default function LeftSidebar() {
             </div>
           )}
 
-          {/* Channels */}
-          <div className="px-3 mt-4 flex-1 overflow-y-auto">
-            <p className="text-xs font-medium text-stone-400 uppercase tracking-wider mb-2 px-1">Channels</p>
-            {channels.map(ch => (
-              <div key={ch.id} className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-stone-600 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer">
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ch.color }} />
-                {ch.name}
-              </div>
-            ))}
-          </div>
+          <div className="flex-1" />
         </>
       )}
 

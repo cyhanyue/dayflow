@@ -125,6 +125,8 @@ model CalendarEvent {
   color          String?
   recurrenceRule String?
   uid            String?   // iCal UID — used to detect moved events
+  organizer      String?
+  attendees      String[]  @default([])
   status         String    @default("confirmed")
   isCompleted    Boolean   @default(false)
   completedAt    DateTime?
