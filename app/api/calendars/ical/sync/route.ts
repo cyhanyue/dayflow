@@ -30,8 +30,8 @@ function parseIcalPython(
 ): Promise<ParsedEvent[]> {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(process.cwd(), 'lib', 'parse_ical.py')
-    // Resolve python3: prefer the PATH python3, fall back to common Anaconda location
-    const python = process.env.PYTHON_BIN ?? '/opt/anaconda3/bin/python3'
+    // Resolve python3: PYTHON_BIN env var (local), then Railway venv, then PATH
+    const python = process.env.PYTHON_BIN ?? '/app/.venv/bin/python3'
     const py = spawn(python, [
       scriptPath,
       userEmail ?? 'null',
