@@ -1,8 +1,7 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm install && prisma db push && prisma generate && next build"
 
 [deploy]
-startCommand = "prisma db push --accept-data-loss; next start -p ${PORT:-3000}"
+startCommand = "npx prisma db push --accept-data-loss && next start -p ${PORT:-3000}"
 healthcheckPath = "/login"
 restartPolicyType = "ON_FAILURE"

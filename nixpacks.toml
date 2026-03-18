@@ -1,10 +1,10 @@
 [phases.setup]
-nixPkgs = ["python312", "python312Packages.pip"]
+nixPkgs = ["python312", "python312Packages.pip", "openssl"]
 
 [phases.install]
 dependsOn = ["setup"]
 cmds = [
-  "npm install",
+  "npm ci --ignore-scripts",
   "pip install -r requirements.txt"
 ]
 
@@ -12,6 +12,7 @@ cmds = [
 dependsOn = ["install"]
 cmds = [
   "npx prisma generate",
+  "npx prisma db push --accept-data-loss",
   "next build"
 ]
 
