@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python312", "python312Packages.pip", "openssl"]
+nixPkgs = ["nodejs_20", "python312", "python312Packages.pip", "openssl"]
 
 [phases.install]
 dependsOn = ["setup"]
