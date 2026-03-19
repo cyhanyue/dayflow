@@ -242,20 +242,6 @@ export default function DayColumn({ date, dateStr, tasks, events: allEvents, loa
 
       {/* Interleaved tasks + events */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-        <SortableContext items={sortedTaskIds} strategy={verticalListSortingStrategy}>
-          {loading ? (
-            <div className="space-y-1.5">
-              {[1, 2].map(i => <div key={i} className="h-12 bg-stone-100 dark:bg-stone-800 rounded-lg animate-pulse" />)}
-            </div>
-          ) : (
-            mergedItems.map(item =>
-              item.type === 'event'
-                ? <EventChipDroppable key={item.id} event={eventMap[item.id]} />
-                : <TaskCard key={item.id} task={taskMap[item.id]} />
-            )
-          )}
-        </SortableContext>
-
         {/* Add task */}
         {addingTask ? (
           <form onSubmit={handleAddTask} className="mt-1 space-y-1">
@@ -299,6 +285,20 @@ export default function DayColumn({ date, dateStr, tasks, events: allEvents, loa
             Add task
           </button>
         )}
+
+        <SortableContext items={sortedTaskIds} strategy={verticalListSortingStrategy}>
+          {loading ? (
+            <div className="space-y-1.5">
+              {[1, 2].map(i => <div key={i} className="h-12 bg-stone-100 dark:bg-stone-800 rounded-lg animate-pulse" />)}
+            </div>
+          ) : (
+            mergedItems.map(item =>
+              item.type === 'event'
+                ? <EventChipDroppable key={item.id} event={eventMap[item.id]} />
+                : <TaskCard key={item.id} task={taskMap[item.id]} />
+            )
+          )}
+        </SortableContext>
       </div>
     </div>
   )
