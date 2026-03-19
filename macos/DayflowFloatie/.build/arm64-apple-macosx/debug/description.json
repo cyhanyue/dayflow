@@ -1,0 +1,258 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.DayflowFloatie-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Library/Developer/CommandLineTools/usr/bin/swiftc",
+      "fileList" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/sources",
+      "importPath" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/AppDelegate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/main.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "DayflowFloatie",
+      "moduleOutputPath" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/Modules/DayflowFloatie.swiftmodule",
+      "objects" : [
+        "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/AppDelegate.swift.o",
+        "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/main.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx12.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "DayflowFloatie_main",
+        "-swift-version",
+        "5",
+        "-I",
+        "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+        "-L",
+        "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+        "-plugin-path",
+        "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "dayflowfloatie"
+      ],
+      "outputFileMapPath" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/AppDelegate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/main.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/Modules/DayflowFloatie.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/AppDelegate.swift",
+        "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/main.swift"
+      ],
+      "tempsPath" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "DayflowFloatie" : [
+      "/Library/Developer/CommandLineTools/usr/bin/swiftc",
+      "-module-name",
+      "DayflowFloatie",
+      "-package-name",
+      "dayflowfloatie",
+      "-c",
+      "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/AppDelegate.swift",
+      "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/main.swift",
+      "-I",
+      "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx12.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "DayflowFloatie_main",
+      "-swift-version",
+      "5",
+      "-I",
+      "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+      "-L",
+      "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+      "-plugin-path",
+      "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "dayflowfloatie",
+      "-driver-use-frontend-path",
+      "/Library/Developer/CommandLineTools/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "DayflowFloatie" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie-entitlement.plist" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<entitlement-plist>"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<com.apple.security.get-task-allow>"
+        }
+      ],
+      "outputFilePath" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie-entitlement.plist"
+    },
+    "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/AppDelegate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/main.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/sources"
+    },
+    "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/AppDelegate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/main.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.product/Objects.LinkFileList"
+    },
+    "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Library/Developer/CommandLineTools/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/useAppStore'
-import { Square, Pause, Play, PictureInPicture2 } from 'lucide-react'
+import { Square, Pause, Play, PictureInPicture2, ExternalLink } from 'lucide-react'
 
 function getEmoji(mins: number, plannedMins: number | null) {
   if (plannedMins && mins >= plannedMins) return '🏁'
@@ -137,6 +137,11 @@ export default function FloatingTimer() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
 
+  // Popout window ref + broadcast channel
+  const popoutRef = useRef<Window | null>(null)
+  const broadcastRef = useRef<BroadcastChannel | null>(null)
+  const actionHandlerRef = useRef<(action: string) => void>(() => {})
+
   // Tick elapsed time
   useEffect(() => {
     if (!activeTimerTaskId || isTimerPaused) { setElapsed(0); return }
@@ -148,6 +153,29 @@ export default function FloatingTimer() {
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
   }, [activeTimerTaskId, isTimerPaused, timerStartedAt, timerAccumulatedMs])
+
+  // Open / maintain BroadcastChannel and listen for actions from the popup
+  useEffect(() => {
+    broadcastRef.current = new BroadcastChannel('dayflow-timer')
+    broadcastRef.current.onmessage = (e) => {
+      if (e.data?.type === 'TIMER_ACTION') actionHandlerRef.current(e.data.action)
+    }
+    return () => { broadcastRef.current?.close(); broadcastRef.current = null }
+  }, [])
+
+  // Broadcast timer state to popup every tick
+  useEffect(() => {
+    if (!broadcastRef.current) return
+    const task = tasks.find(t => t.id === activeTimerTaskId)
+    broadcastRef.current.postMessage({
+      type: 'TIMER_STATE',
+      active: !!activeTimerTaskId,
+      paused: isTimerPaused,
+      elapsed,
+      title: timerTaskTitle || task?.title || 'Task',
+      plannedMins: task?.plannedTimeMinutes ?? null,
+    })
+  }, [elapsed, activeTimerTaskId, isTimerPaused, timerTaskTitle, tasks])
 
   // Update browser tab title with elapsed time
   useEffect(() => {
@@ -255,6 +283,25 @@ export default function FloatingTimer() {
     stopTimer()
   }
 
+  // Keep action handler ref current so the BroadcastChannel listener always calls the latest version
+  actionHandlerRef.current = (action: string) => {
+    if (action === 'pause') pauseTimer()
+    else if (action === 'resume') resumeTimer()
+    else if (action === 'stop') handleStop()
+  }
+
+  function openPopout() {
+    if (popoutRef.current && !popoutRef.current.closed) {
+      popoutRef.current.focus()
+      return
+    }
+    popoutRef.current = window.open(
+      '/timer',
+      'dayflow-timer',
+      'width=380,height=72,resizable=no,menubar=no,toolbar=no,location=no,status=no',
+    )
+  }
+
   async function openPiP() {
     if (!canvasRef.current || !videoRef.current) return
     if (!document.pictureInPictureEnabled) {
@@ -348,6 +395,16 @@ export default function FloatingTimer() {
               <div style={{ fontSize: 11, color: colors.sub, textAlign: 'center' }}>/ {plannedStr}</div>
             )}
           </div>
+
+          {/* Pop-out button */}
+          <button
+            onClick={openPopout}
+            onMouseDown={e => e.stopPropagation()}
+            title="Open in separate window"
+            style={{ flexShrink: 0, background: colors.btn, border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: colors.timer, transition: 'background 0.2s' }}
+          >
+            <ExternalLink size={12} />
+          </button>
 
           {/* PiP button */}
           <button

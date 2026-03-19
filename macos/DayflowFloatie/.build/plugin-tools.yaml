@@ -1,0 +1,81 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "DayflowFloatie-arm64-apple-macosx26.0-debug.exe": ["<DayflowFloatie-arm64-apple-macosx26.0-debug.exe>"]
+  "DayflowFloatie-arm64-apple-macosx26.0-debug.module": ["<DayflowFloatie-arm64-apple-macosx26.0-debug.module>"]
+  "PackageStructure": ["<PackageStructure>"]
+  "main": ["<DayflowFloatie-arm64-apple-macosx26.0-debug.exe>","<DayflowFloatie-arm64-apple-macosx26.0-debug.module>"]
+  "test": ["<DayflowFloatie-arm64-apple-macosx26.0-debug.exe>","<DayflowFloatie-arm64-apple-macosx26.0-debug.module>"]
+default: "main"
+nodes:
+  "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie":
+    is-mutated: true
+commands:
+  "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie-entitlement.plist":
+    tool: write-auxiliary-file
+    inputs: ["<entitlement-plist>","<com.apple.security.get-task-allow>"]
+    outputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie-entitlement.plist"]
+    description: "Write auxiliary file /Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie-entitlement.plist"
+
+  "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/AppDelegate.swift","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/main.swift"]
+    outputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/sources"]
+    description: "Write auxiliary file /Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/sources"
+
+  "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/AppDelegate.swift.o","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/main.swift.o"]
+    outputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.product/Objects.LinkFileList"
+
+  "/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Library/Developer/CommandLineTools/usr/bin/swiftc"]
+    outputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"
+
+  "<DayflowFloatie-arm64-apple-macosx26.0-debug.exe>":
+    tool: phony
+    inputs: ["<DayflowFloatie-arm64-apple-macosx26.0-debug.exe-CodeSigning>"]
+    outputs: ["<DayflowFloatie-arm64-apple-macosx26.0-debug.exe>"]
+
+  "<DayflowFloatie-arm64-apple-macosx26.0-debug.module>":
+    tool: phony
+    inputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/AppDelegate.swift.o","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/main.swift.o","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/Modules/DayflowFloatie.swiftmodule"]
+    outputs: ["<DayflowFloatie-arm64-apple-macosx26.0-debug.module>"]
+
+  "C.DayflowFloatie-arm64-apple-macosx26.0-debug.exe":
+    tool: shell
+    inputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/AppDelegate.swift.o","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/main.swift.o","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.product/Objects.LinkFileList"]
+    outputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie"]
+    description: "Linking ./.build/arm64-apple-macosx/debug/DayflowFloatie"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-L","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug","-o","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie","-module-name","DayflowFloatie","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-alias","-Xlinker","_DayflowFloatie_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.product/Objects.LinkFileList","-Xlinker","-rpath","-Xlinker","/Library/Developer/CommandLineTools/usr/lib/swift-6.2/macosx","-target","arm64-apple-macosx12.0","-Xlinker","-add_ast_path","-Xlinker","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/Modules/DayflowFloatie.swiftmodule","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g"]
+
+  "C.DayflowFloatie-arm64-apple-macosx26.0-debug.exe-entitlements":
+    tool: shell
+    inputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie-entitlement.plist"]
+    outputs: ["<DayflowFloatie-arm64-apple-macosx26.0-debug.exe-CodeSigning>"]
+    description: "Applying debug entitlements to ./.build/arm64-apple-macosx/debug/DayflowFloatie"
+    args: ["codesign","--force","--sign","-","--entitlements","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie-entitlement.plist","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie"]
+
+  "C.DayflowFloatie-arm64-apple-macosx26.0-debug.module":
+    tool: shell
+    inputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/AppDelegate.swift","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/main.swift","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/sources"]
+    outputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/AppDelegate.swift.o","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/main.swift.o","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/Modules/DayflowFloatie.swiftmodule"]
+    description: "Compiling Swift Module 'DayflowFloatie' (2 sources)"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-module-name","DayflowFloatie","-emit-dependencies","-emit-module","-emit-module-path","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/Modules/DayflowFloatie.swiftmodule","-output-file-map","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/output-file-map.json","-incremental","-c","@/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/DayflowFloatie.build/sources","-I","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/Modules","-target","arm64-apple-macosx12.0","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/index/store","-Onone","-enable-testing","-j8","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/.build/arm64-apple-macosx/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","DayflowFloatie_main","-swift-version","5","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g","-Xcc","-isysroot","-Xcc","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-Xcc","-fPIC","-Xcc","-g","-package-name","dayflowfloatie"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Sources/","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Package.swift","/Users/hanyueyin/Desktop/projects/dayflow/macos/DayflowFloatie/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+
