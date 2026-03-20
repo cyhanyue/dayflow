@@ -26,7 +26,47 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
     private var windowStartOrigin: NSPoint = .zero
     private var dragMonitors: [Any] = []
 
+    // MARK: Server URL (stored in UserDefaults)
+
+    private var serverURL: String {
+        UserDefaults.standard.string(forKey: "serverURL") ?? "http://localhost:3001"
+    }
+
+    /// Shows a prompt asking the user for the server URL.
+    /// Pass `prefill: true` to populate the text field with the current value (used for "Change URL…").
+    @discardableResult
+    private func promptForURL(prefill: Bool = false) -> String {
+        let alert = NSAlert()
+        alert.messageText = "Dayflow Server URL"
+        alert.informativeText = "Enter the URL where Dayflow is running.\nExample: https://your-app.up.railway.app"
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Use localhost")
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        input.placeholderString = "https://your-app.up.railway.app"
+        if prefill { input.stringValue = serverURL }
+        alert.accessoryView = input
+        alert.window.initialFirstResponder = input
+
+        let response = alert.runModal()
+        let chosen: String
+        if response == .alertFirstButtonReturn {
+            let trimmed = input.stringValue
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            chosen = trimmed.isEmpty ? "http://localhost:3001" : trimmed
+        } else {
+            chosen = "http://localhost:3001"
+        }
+        UserDefaults.standard.set(chosen, forKey: "serverURL")
+        return chosen
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Ask for URL on very first launch (no stored value yet)
+        if UserDefaults.standard.string(forKey: "serverURL") == nil {
+            promptForURL()
+        }
         setupStatusBar()
         setupPanel()
         setupDragMonitor()
@@ -89,8 +129,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Show Floatie", action: #selector(showPanel), keyEquivalent: ""))
         menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Change Server URL…", action: #selector(changeURL), keyEquivalent: ""))
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
+    }
+
+    @objc func changeURL() {
+        promptForURL(prefill: true)
+        // Reload the webview with the new URL
+        if let webView = panel.contentView?.subviews.compactMap({ $0 as? FloatieWebView }).first {
+            webView.load(URLRequest(url: URL(string: "\(serverURL)/timer")!))
+        }
     }
 
     // MARK: Floating panel
@@ -138,7 +188,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         webView.layer?.backgroundColor = NSColor.clear.cgColor
         container.addSubview(webView)
 
-        webView.load(URLRequest(url: URL(string: "http://localhost:3001/timer")!))
+        webView.load(URLRequest(url: URL(string: "\(serverURL)/timer")!))
 
         panel.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)

@@ -151,3 +151,16 @@ model TimeEntry {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
+
+// Single-row table for cross-process timer state (floatie ↔ web app)
+model TimerState {
+  id                 String   @id @default("singleton")
+  active             Boolean  @default(false)
+  paused             Boolean  @default(false)
+  timerStartedAt     Float?   // Unix ms timestamp (Float64 handles up to 2^53)
+  timerAccumulatedMs Int      @default(0)
+  title              String   @default("")
+  plannedMins        Int?
+  pendingAction      String?
+  updatedAt          DateTime @updatedAt
+}

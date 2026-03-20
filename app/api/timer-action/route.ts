@@ -1,16 +1,30 @@
 import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
 
-// Single pending action slot — FloatingTimer polls this and executes it
-let pendingAction: string | null = null
+const SINGLETON_ID = 'singleton'
 
 export async function GET() {
-  const action = pendingAction
-  pendingAction = null // consume it
+  const row = await prisma.timerState.findUnique({
+    where: { id: SINGLETON_ID },
+    select: { pendingAction: true },
+  })
+  const action = row?.pendingAction ?? null
+  if (action) {
+    // Consume the action
+    await prisma.timerState.update({
+      where: { id: SINGLETON_ID },
+      data: { pendingAction: null },
+    })
+  }
   return NextResponse.json({ action })
 }
 
 export async function POST(request: Request) {
   const { action } = await request.json()
-  pendingAction = action
+  await prisma.timerState.upsert({
+    where: { id: SINGLETON_ID },
+    update: { pendingAction: action },
+    create: { id: SINGLETON_ID, pendingAction: action },
+  })
   return NextResponse.json({ ok: true })
 }
