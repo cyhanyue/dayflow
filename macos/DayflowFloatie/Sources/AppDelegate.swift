@@ -249,8 +249,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
     // MARK: - Status bar menu
 
     func setupStatusBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "⏱"
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        if let button = statusItem.button {
+            if let image = NSImage(systemSymbolName: "timer", accessibilityDescription: "Dayflow Timer") {
+                image.isTemplate = true
+                button.image = image
+            } else {
+                button.title = "⏱"
+            }
+        }
+        statusItem.isVisible = true
         rebuildMenu()
     }
 
