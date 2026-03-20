@@ -145,7 +145,7 @@ function InactiveState() {
         {/* Open Dayflow button */}
         <button
           className="open-btn"
-          onClick={() => openURL('http://localhost:3001/app')}
+          onClick={() => openURL(`${window.location.origin}/app`)}
           style={{
             background: 'rgba(99,179,237,0.15)', border: '1px solid rgba(99,179,237,0.3)',
             borderRadius: 14, padding: '4px 10px', color: '#63b3ed',
