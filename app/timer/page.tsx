@@ -1,11 +1,16 @@
-import PopoutTimer from '@/components/task/PopoutTimer'
+'use client'
+import dynamic from 'next/dynamic'
 
-export const metadata = { title: 'Dayflow Timer' }
+const PopoutTimer = dynamic(() => import('@/components/task/PopoutTimer'), { ssr: false })
 
 export default function TimerPage() {
   return (
-    <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden' }}>
+    <>
+      <style>{`
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; border: none; outline: none; }
+      `}</style>
       <PopoutTimer />
-    </div>
+    </>
   )
 }

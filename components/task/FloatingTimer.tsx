@@ -163,7 +163,7 @@ export default function FloatingTimer() {
     return () => { broadcastRef.current?.close(); broadcastRef.current = null }
   }, [])
 
-  // Broadcast timer state to popup every tick
+  // Broadcast timer state to browser popup every tick (BroadcastChannel)
   useEffect(() => {
     if (!broadcastRef.current) return
     const task = tasks.find(t => t.id === activeTimerTaskId)
@@ -176,6 +176,23 @@ export default function FloatingTimer() {
       plannedMins: task?.plannedTimeMinutes ?? null,
     })
   }, [elapsed, activeTimerTaskId, isTimerPaused, timerTaskTitle, tasks])
+
+  // Sync timer state to API for native floatie (WKWebView can't use BroadcastChannel)
+  useEffect(() => {
+    const task = tasks.find(t => t.id === activeTimerTaskId)
+    fetch('/api/timer-state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        active: !!activeTimerTaskId,
+        paused: isTimerPaused,
+        timerStartedAt,
+        timerAccumulatedMs,
+        title: timerTaskTitle || task?.title || 'Task',
+        plannedMins: task?.plannedTimeMinutes ?? null,
+      }),
+    }).catch(() => {})
+  }, [activeTimerTaskId, isTimerPaused, timerStartedAt, timerAccumulatedMs, timerTaskTitle, tasks])
 
   // Update browser tab title with elapsed time
   useEffect(() => {
@@ -237,6 +254,41 @@ export default function FloatingTimer() {
     return () => { window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp) }
   }, [])
 
+  const task = tasks.find(t => t.id === activeTimerTaskId)
+
+  // Keep action handler ref current so both BroadcastChannel and API polling call the latest version
+  async function handleStop() {
+    if (!activeTimerTaskId) return
+    const live = timerStartedAt ? Date.now() - timerStartedAt : 0
+    const durationMinutes = Math.round((timerAccumulatedMs + live) / 60000)
+    const newActual = (task?.actualTimeMinutes || 0) + durationMinutes
+    updateTask(activeTimerTaskId, { actualTimeMinutes: newActual })
+    await fetch(`/api/tasks/${activeTimerTaskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actualTimeMinutes: newActual }),
+    })
+    stopTimer()
+  }
+
+  actionHandlerRef.current = (action: string) => {
+    if (action === 'pause') pauseTimer()
+    else if (action === 'resume') resumeTimer()
+    else if (action === 'stop') handleStop()
+  }
+
+  // Poll for actions posted by the native floatie (WKWebView can't use BroadcastChannel)
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch('/api/timer-action')
+        const { action } = await res.json()
+        if (action) actionHandlerRef.current(action)
+      } catch {}
+    }, 200)
+    return () => clearInterval(id)
+  }, [])
+
   // Timer inactive — render nothing (but keep hidden canvas/video in DOM for PiP setup)
   if (!activeTimerTaskId) return (
     <>
@@ -244,8 +296,6 @@ export default function FloatingTimer() {
       <video ref={videoRef} style={{ display: 'none' }} muted playsInline />
     </>
   )
-
-  const task = tasks.find(t => t.id === activeTimerTaskId)
 
   const title = timerTaskTitle || task?.title || 'Task'
   const mins = Math.floor(elapsed / 60)
@@ -269,27 +319,6 @@ export default function FloatingTimer() {
       plannedStr, progress, colors.bar, colors.barBg)
   }
 
-  async function handleStop() {
-    if (!activeTimerTaskId) return
-    const live = timerStartedAt ? Date.now() - timerStartedAt : 0
-    const durationMinutes = Math.round((timerAccumulatedMs + live) / 60000)
-    const newActual = (task?.actualTimeMinutes || 0) + durationMinutes
-    updateTask(activeTimerTaskId, { actualTimeMinutes: newActual })
-    await fetch(`/api/tasks/${activeTimerTaskId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ actualTimeMinutes: newActual }),
-    })
-    stopTimer()
-  }
-
-  // Keep action handler ref current so the BroadcastChannel listener always calls the latest version
-  actionHandlerRef.current = (action: string) => {
-    if (action === 'pause') pauseTimer()
-    else if (action === 'resume') resumeTimer()
-    else if (action === 'stop') handleStop()
-  }
-
   function openPopout() {
     if (popoutRef.current && !popoutRef.current.closed) {
       popoutRef.current.focus()
@@ -298,7 +327,7 @@ export default function FloatingTimer() {
     popoutRef.current = window.open(
       '/timer',
       'dayflow-timer',
-      'width=380,height=72,resizable=no,menubar=no,toolbar=no,location=no,status=no',
+      'popup,width=380,height=72',
     )
   }
 
