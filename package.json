@@ -13,7 +13,8 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "install:floatie": "bash scripts/install-floatie.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
