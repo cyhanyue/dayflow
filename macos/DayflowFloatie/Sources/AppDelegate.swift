@@ -128,14 +128,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
     // MARK: - App lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Prompt if URL has never been explicitly confirmed (covers first launch
-        // and users who had localhost auto-stored from a previous dev run).
-        if !UserDefaults.standard.bool(forKey: "serverURLConfirmed") {
-            promptForURL(prefill: UserDefaults.standard.string(forKey: "serverURL") != nil)
-        }
         setupStatusBar()
         setupPanel()
         setupDragMonitor()
+
+        // Prompt after UI is ready so the dialog isn't hidden behind setup.
+        // Fires if URL has never been explicitly confirmed (covers first launch
+        // and users who had localhost auto-stored from a previous dev run).
+        DispatchQueue.main.async {
+            if !UserDefaults.standard.bool(forKey: "serverURLConfirmed") {
+                self.promptForURL(prefill: UserDefaults.standard.string(forKey: "serverURL") != nil)
+                // Reload webview with whatever URL was just confirmed
+                if let webView = self.panel.contentView?.subviews.compactMap({ $0 as? FloatieWebView }).first {
+                    webView.load(URLRequest(url: URL(string: "\(self.serverURL)/timer")!))
+                }
+            }
+        }
     }
 
     // MARK: - Drag monitor
