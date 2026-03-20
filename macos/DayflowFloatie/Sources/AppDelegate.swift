@@ -178,9 +178,61 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
             frame.size.height = newHeight
             panel.setFrame(frame, display: true, animate: true)
         case "open":
-            guard let urlStr = body["url"], let url = URL(string: urlStr) else { break }
-            NSWorkspace.shared.open(url)
+            guard let urlStr = body["url"] else { break }
+            openInBrowser(urlStr)
         default: break
+        }
+    }
+
+    // MARK: - Open URL (focus existing browser tab, open fresh only if not found)
+
+    private func openInBrowser(_ urlString: String) {
+        guard let host = URL(string: urlString)?.host else {
+            NSWorkspace.shared.open(URL(string: urlString)!)
+            return
+        }
+        // AppleScript: look for an existing tab whose URL contains our host
+        // and bring it to front. Try Chrome then Safari, fall back to NSWorkspace.
+        let script = """
+        set targetURL to "\(urlString)"
+        set targetHost to "\(host)"
+
+        try
+            tell application "Google Chrome"
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        if URL of t contains targetHost then
+                            set active tab index of w to index of t
+                            set index of w to 1
+                            activate
+                            return
+                        end if
+                    end repeat
+                end repeat
+            end tell
+        end try
+
+        try
+            tell application "Safari"
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        if URL of t contains targetHost then
+                            set current tab of w to t
+                            set index of w to 1
+                            activate
+                            return
+                        end if
+                    end repeat
+                end repeat
+            end tell
+        end try
+
+        open location targetURL
+        """
+        var error: NSDictionary?
+        NSAppleScript(source: script)?.executeAndReturnError(&error)
+        if error != nil, let url = URL(string: urlString) {
+            NSWorkspace.shared.open(url)
         }
     }
 
