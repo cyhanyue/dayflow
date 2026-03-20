@@ -56,6 +56,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
             chosen = "http://localhost:3001"
         }
         UserDefaults.standard.set(chosen, forKey: "serverURL")
+        UserDefaults.standard.set(true, forKey: "serverURLConfirmed")
         return chosen
     }
 
@@ -127,9 +128,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
     // MARK: - App lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Prompt for URL on very first launch only
-        if UserDefaults.standard.string(forKey: "serverURL") == nil {
-            promptForURL()
+        // Prompt if URL has never been explicitly confirmed (covers first launch
+        // and users who had localhost auto-stored from a previous dev run).
+        if !UserDefaults.standard.bool(forKey: "serverURLConfirmed") {
+            promptForURL(prefill: UserDefaults.standard.string(forKey: "serverURL") != nil)
         }
         setupStatusBar()
         setupPanel()
