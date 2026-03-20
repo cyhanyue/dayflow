@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "prisma db push && prisma generate && concurrently --names \"web,floatie\" --prefix-colors \"cyan,magenta\" \"next dev --port 3001\" \"cd macos/DayflowFloatie && swift run\"",
-    "build": "prisma generate && next build",
+    "build": "prisma db push && prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
