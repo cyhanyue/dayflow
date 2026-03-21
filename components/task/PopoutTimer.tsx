@@ -80,6 +80,13 @@ function minimize() {
   }
 }
 
+function quitApp() {
+  const webkit = (window as any).webkit
+  if (webkit?.messageHandlers?.floatie) {
+    webkit.messageHandlers.floatie.postMessage({ action: 'quit' })
+  }
+}
+
 // Open a URL — reuse existing named window so Dayflow isn't opened twice
 function openURL(url: string) {
   const webkit = (window as any).webkit
@@ -154,6 +161,21 @@ function InactiveState() {
           }}
         >
           Open <span style={{ fontSize: 11 }}>↗</span>
+        </button>
+
+        {/* Quit button */}
+        <button
+          onClick={quitApp}
+          title="Quit Floatie"
+          style={{
+            background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
+            fontSize: 14, cursor: 'pointer', padding: '0 2px', flexShrink: 0,
+            lineHeight: 1, transition: 'color 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}
+        >
+          ×
         </button>
       </div>
     </>

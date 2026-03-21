@@ -3,7 +3,12 @@ import WebKit
 
 // MARK: - FloatieWebView
 class FloatieWebView: WKWebView {
+    var rightClickHandler: ((NSEvent) -> Void)?
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func rightMouseDown(with event: NSEvent) {
+        // Handle right-click natively instead of letting WKWebView show its menu
+        rightClickHandler?(event)
+    }
 }
 
 // MARK: - FloatiePanel
@@ -169,13 +174,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
             }
             return event
         }
-        // Right-click → settings context menu
-        let rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
-            guard let self, event.window === self.panel else { return event }
-            self.showContextMenu(at: event)
-            return nil
-        }
-        [downMonitor, dragMonitor, rightClickMonitor].compactMap { $0 }.forEach { dragMonitors.append($0) }
+        [downMonitor, dragMonitor].compactMap { $0 }.forEach { dragMonitors.append($0) }
     }
 
     private func showContextMenu(at event: NSEvent) {
@@ -233,6 +232,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         case "open":
             guard let urlStr = body["url"] else { break }
             openInBrowser(urlStr)
+        case "quit":
+            NSApp.terminate(nil)
         default: break
         }
     }
@@ -328,6 +329,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         webView.wantsLayer = true
         webView.layer?.borderWidth = 0
         webView.layer?.backgroundColor = NSColor.clear.cgColor
+        webView.rightClickHandler = { [weak self] event in
+            self?.showContextMenu(at: event)
+        }
         container.addSubview(webView)
 
         webView.load(URLRequest(url: URL(string: "\(serverURL)/timer")!))
