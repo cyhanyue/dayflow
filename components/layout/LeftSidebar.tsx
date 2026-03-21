@@ -196,7 +196,13 @@ export default function LeftSidebar() {
       {/* Floatie launcher */}
       <div className={cn('px-2 pb-1', collapsed && 'flex justify-center')}>
         <button
-          onClick={() => { window.location.href = 'dayflow://show' }}
+          onClick={() => {
+            const a = document.createElement('a')
+            a.href = 'dayflow://show'
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+          }}
           title="Show Floatie"
           className={cn(
             'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors w-full',

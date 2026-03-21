@@ -70,6 +70,10 @@ PLIST
 # PkgInfo is required for macOS to recognise the bundle as an app
 printf 'APPL????' > "$APP_BUNDLE/Contents/PkgInfo"
 
+# Force-register the URL scheme with macOS Launch Services so dayflow:// works immediately
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+  -f "$APP_BUNDLE" 2>/dev/null || true
+
 echo "Launching $APP_NAME…"
 open "$APP_BUNDLE"
 
