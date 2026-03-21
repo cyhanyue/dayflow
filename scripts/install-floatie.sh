@@ -50,6 +50,8 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Dayflow Floatie uses this to focus your existing browser tab instead of opening a new one.</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

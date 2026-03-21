@@ -242,7 +242,87 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
 
     private func openInBrowser(_ urlString: String) {
         guard let url = URL(string: urlString) else { return }
-        NSWorkspace.shared.open(url)
+
+        // Try to focus an existing tab in Chrome or Safari that contains the Dayflow origin.
+        // If no matching tab is found (or AppleScript fails), fall back to opening a new tab.
+        let origin = "\(url.scheme ?? "https")://\(url.host ?? "")"
+        let escaped = urlString.replacingOccurrences(of: "\\", with: "\\\\")
+                                .replacingOccurrences(of: "\"", with: "\\\"")
+        let escapedOrigin = origin.replacingOccurrences(of: "\\", with: "\\\\")
+                                  .replacingOccurrences(of: "\"", with: "\\\"")
+
+        let chromeScript = """
+        tell application "Google Chrome"
+            set found to false
+            repeat with w in windows
+                set ti to 1
+                repeat with t in tabs of w
+                    if URL of t starts with "\(escapedOrigin)" then
+                        set active tab index of w to ti
+                        set index of w to 1
+                        activate
+                        set found to true
+                        exit repeat
+                    end if
+                    set ti to ti + 1
+                end repeat
+                if found then exit repeat
+            end repeat
+            if not found then
+                if (count windows) = 0 then
+                    make new window
+                end if
+                open location "\(escaped)"
+                activate
+            end if
+        end tell
+        """
+
+        let safariScript = """
+        tell application "Safari"
+            set found to false
+            repeat with w in windows
+                set ti to 1
+                repeat with t in tabs of w
+                    if URL of t starts with "\(escapedOrigin)" then
+                        set current tab of w to t
+                        set index of w to 1
+                        activate
+                        set found to true
+                        exit repeat
+                    end if
+                    set ti to ti + 1
+                end repeat
+                if found then exit repeat
+            end repeat
+            if not found then
+                open location "\(escaped)"
+                activate
+            end if
+        end tell
+        """
+
+        // Determine the default browser and run the matching script
+        let defaultBrowser = NSWorkspace.shared.urlForApplication(toOpen: url)?.lastPathComponent ?? ""
+
+        var scriptSource: String
+        if defaultBrowser.lowercased().contains("chrome") {
+            scriptSource = chromeScript
+        } else if defaultBrowser.lowercased().contains("safari") {
+            scriptSource = safariScript
+        } else {
+            // Unknown browser — fall back to simple open (no tab focusing)
+            NSWorkspace.shared.open(url)
+            return
+        }
+
+        var error: NSDictionary?
+        let script = NSAppleScript(source: scriptSource)
+        script?.executeAndReturnError(&error)
+        if error != nil {
+            // AppleScript failed (e.g. permission denied) — open normally
+            NSWorkspace.shared.open(url)
+        }
     }
 
     // MARK: - Floating panel
