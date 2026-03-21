@@ -50,6 +50,19 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>dayflow</string>
+            </array>
+            <key>CFBundleURLName</key>
+            <string>com.dayflow.floatie</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST

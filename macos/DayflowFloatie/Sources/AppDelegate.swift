@@ -2,14 +2,11 @@ import AppKit
 import WebKit
 
 // MARK: - FloatieWebView
-// Overrides acceptsFirstMouse so clicks register immediately without
-// needing a first click to "activate" the nonactivatingPanel.
 class FloatieWebView: WKWebView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 // MARK: - FloatiePanel
-
 class FloatiePanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
@@ -19,13 +16,11 @@ class FloatiePanel: NSPanel {
 
 class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
     var panel: FloatiePanel!
-    var statusItem: NSStatusItem!
-
     private var dragStartScreen: NSPoint = .zero
     private var windowStartOrigin: NSPoint = .zero
     private var dragMonitors: [Any] = []
 
-    // MARK: - Server URL (stored in UserDefaults)
+    // MARK: - Server URL
 
     private var serverURL: String {
         UserDefaults.standard.string(forKey: "serverURL") ?? "http://localhost:3001"
@@ -60,7 +55,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         return chosen
     }
 
-    // MARK: - Launch at Login (LaunchAgent plist)
+    // MARK: - Launch at Login
 
     private var launchAgentURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -71,14 +66,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         FileManager.default.fileExists(atPath: launchAgentURL.path)
     }
 
-    @objc private func toggleLaunchAtLogin() {
-        isLaunchAtLoginEnabled ? disableLaunchAtLogin() : enableLaunchAtLogin()
-        rebuildMenu()
-    }
-
     private func enableLaunchAtLogin() {
-        // Use the path of the currently running executable so the plist
-        // points to whichever binary (debug or release) was just built.
         let execPath = ProcessInfo.processInfo.arguments[0]
         let plist = """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -125,20 +113,33 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         alert.runModal()
     }
 
+    // MARK: - URL Scheme (dayflow://show)
+    // Must be registered in willFinishLaunching so the event isn't missed on cold launch.
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURL(_:withReplyEvent:)),
+            forEventClass: AEEventClass(0x4755524C), // kInternetEventClass
+            andEventID:    AEEventID(0x4755524C)     // kAEGetURL
+        )
+    }
+
+    @objc func handleGetURL(_ event: NSAppleEventDescriptor, withReplyEvent: NSAppleEventDescriptor) {
+        guard let urlStr = event.paramDescriptor(forKeyword: 0x2D2D2D2D)?.stringValue, // keyDirectObject
+              URL(string: urlStr)?.scheme == "dayflow" else { return }
+        showPanel()
+    }
+
     // MARK: - App lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        setupStatusBar()
         setupPanel()
         setupDragMonitor()
 
-        // Prompt after UI is ready so the dialog isn't hidden behind setup.
-        // Fires if URL has never been explicitly confirmed (covers first launch
-        // and users who had localhost auto-stored from a previous dev run).
         DispatchQueue.main.async {
             if !UserDefaults.standard.bool(forKey: "serverURLConfirmed") {
                 self.promptForURL(prefill: UserDefaults.standard.string(forKey: "serverURL") != nil)
-                // Reload webview with whatever URL was just confirmed
                 if let webView = self.panel.contentView?.subviews.compactMap({ $0 as? FloatieWebView }).first {
                     webView.load(URLRequest(url: URL(string: "\(self.serverURL)/timer")!))
                 }
@@ -146,9 +147,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         }
     }
 
-    // MARK: - Drag monitor
-    // WKWebView captures all mouse events, so we intercept at the app level.
-    // Clicks are passed through (buttons work); drags move the window.
+    // MARK: - Drag + right-click monitors
+
     func setupDragMonitor() {
         let downMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
             guard let self, event.window === self.panel else { return event }
@@ -167,11 +167,52 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
             }
             return event
         }
-        if let d = downMonitor { dragMonitors.append(d) }
-        if let d = dragMonitor { dragMonitors.append(d) }
+        // Right-click → settings context menu
+        let rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
+            guard let self, event.window === self.panel else { return event }
+            self.showContextMenu(at: event)
+            return nil
+        }
+        [downMonitor, dragMonitor, rightClickMonitor].compactMap { $0 }.forEach { dragMonitors.append($0) }
     }
 
-    // MARK: - WKScriptMessageHandler — receives messages from the web page
+    private func showContextMenu(at event: NSEvent) {
+        let menu = NSMenu()
+
+        let changeItem = NSMenuItem(title: "Change Server URL…", action: #selector(changeURL), keyEquivalent: "")
+        changeItem.target = self
+        menu.addItem(changeItem)
+
+        menu.addItem(.separator())
+
+        let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        loginItem.target = self
+        loginItem.state = isLaunchAtLoginEnabled ? .on : .off
+        menu.addItem(loginItem)
+
+        menu.addItem(.separator())
+
+        let quitItem = NSMenuItem(title: "Quit Floatie", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+        menu.addItem(quitItem)
+
+        if let view = panel.contentView {
+            NSMenu.popUpContextMenu(menu, with: event, for: view)
+        }
+    }
+
+    @objc private func changeURL() {
+        promptForURL(prefill: true)
+        if let webView = panel.contentView?.subviews.compactMap({ $0 as? FloatieWebView }).first {
+            webView.load(URLRequest(url: URL(string: "\(serverURL)/timer")!))
+        }
+        if isLaunchAtLoginEnabled { enableLaunchAtLogin() }
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        isLaunchAtLoginEnabled ? disableLaunchAtLogin() : enableLaunchAtLogin()
+    }
+
+    // MARK: - WKScriptMessageHandler
 
     func userContentController(_ userContentController: WKUserContentController,
                                didReceive message: WKScriptMessage) {
@@ -194,15 +235,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         }
     }
 
-    // MARK: - Open URL (focus existing browser tab, open fresh only if not found)
+    // MARK: - Open URL (focus existing browser tab or open fresh)
 
     private func openInBrowser(_ urlString: String) {
         guard let host = URL(string: urlString)?.host else {
-            NSWorkspace.shared.open(URL(string: urlString)!)
+            if let url = URL(string: urlString) { NSWorkspace.shared.open(url) }
             return
         }
-        // AppleScript: look for an existing tab whose URL contains our host
-        // and bring it to front. Try Chrome then Safari, fall back to NSWorkspace.
         let script = """
         set targetURL to "\(urlString)"
         set targetHost to "\(host)"
@@ -244,43 +283,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         if error != nil, let url = URL(string: urlString) {
             NSWorkspace.shared.open(url)
         }
-    }
-
-    // MARK: - Status bar menu
-
-    func setupStatusBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "⏱"
-        statusItem.isVisible = true
-        rebuildMenu()
-    }
-
-    func rebuildMenu() {
-        let menu = NSMenu()
-
-        menu.addItem(NSMenuItem(title: "Show Floatie", action: #selector(showPanel), keyEquivalent: ""))
-        menu.addItem(.separator())
-
-        menu.addItem(NSMenuItem(title: "Change Server URL…", action: #selector(changeURL), keyEquivalent: ""))
-        menu.addItem(.separator())
-
-        let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
-        loginItem.state = isLaunchAtLoginEnabled ? .on : .off
-        menu.addItem(loginItem)
-        menu.addItem(.separator())
-
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        statusItem.menu = menu
-    }
-
-    @objc func changeURL() {
-        promptForURL(prefill: true)
-        // Reload the webview with the new URL immediately
-        if let webView = panel.contentView?.subviews.compactMap({ $0 as? FloatieWebView }).first {
-            webView.load(URLRequest(url: URL(string: "\(serverURL)/timer")!))
-        }
-        // Update Launch at Login plist to use the new URL (path doesn't change, but rebuilds plist)
-        if isLaunchAtLoginEnabled { enableLaunchAtLogin() }
     }
 
     // MARK: - Floating panel

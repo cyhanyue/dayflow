@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAppStore } from '@/store/useAppStore'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Calendar, BarChart2, Settings, LogOut, Repeat, ChevronDown, ChevronRight, Pencil, Trash2, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { LayoutDashboard, Calendar, BarChart2, Settings, LogOut, Repeat, ChevronDown, ChevronRight, Pencil, Trash2, PanelLeftClose, PanelLeftOpen, AppWindow } from 'lucide-react'
 import { Task } from '@/types'
 
 const nav = [
@@ -193,8 +193,24 @@ export default function LeftSidebar() {
         </>
       )}
 
+      {/* Floatie launcher */}
+      <div className={cn('px-2 pb-1', collapsed && 'flex justify-center')}>
+        <button
+          onClick={() => { window.location.href = 'dayflow://show' }}
+          title="Show Floatie"
+          className={cn(
+            'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors w-full',
+            collapsed && 'justify-center px-0',
+            'text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
+          )}
+        >
+          <AppWindow size={16} />
+          {!collapsed && 'Show Floatie'}
+        </button>
+      </div>
+
       {/* Logout */}
-      <div className={cn('p-2 border-t border-stone-100 dark:border-stone-800 mt-auto', collapsed && 'flex justify-center')}>
+      <div className={cn('p-2 border-t border-stone-100 dark:border-stone-800', collapsed && 'flex justify-center')}>
         <button
           onClick={handleLogout}
           title={collapsed ? 'Sign out' : undefined}
