@@ -30,8 +30,15 @@ export default function KanbanBoard() {
   const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const weekDays = getWeekDays(currentWeekStart)
-  const dateStrings = weekDays.map(formatDate)
+  // Show 3 weeks (current + next 2) so tasks can be dragged across week boundaries
+  const weeks = [
+    getWeekDays(currentWeekStart),
+    getWeekDays(addWeeks(currentWeekStart, 1)),
+    getWeekDays(addWeeks(currentWeekStart, 2)),
+  ]
+  const weekDays = weeks[0] // used for header display
+  const allDays = weeks.flat()
+  const allDateStrings = allDays.map(formatDate)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -41,19 +48,19 @@ export default function KanbanBoard() {
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
-    const start = weekDays[0]
-    const end = new Date(weekDays[6])
+    const start = allDays[0]
+    const end = new Date(allDays[allDays.length - 1])
     end.setHours(23, 59, 59, 999)
 
     const [taskResults, eventsRes] = await Promise.all([
-      Promise.all(dateStrings.map(date => fetch(`/api/tasks?date=${date}`).then(r => r.json()))),
+      Promise.all(allDateStrings.map(date => fetch(`/api/tasks?date=${date}`).then(r => r.json()))),
       fetch(`/api/events?start=${start.toISOString()}&end=${end.toISOString()}`).then(r => r.ok ? r.json() : []),
     ])
 
     setTasks(taskResults.flat())
     setWeekEvents(eventsRes ?? [])
     setLoading(false)
-  }, [dateStrings.join(','), setTasks])
+  }, [allDateStrings.join(','), setTasks])
 
   // Re-load whenever week changes OR a background sync completes
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,7 +70,7 @@ export default function KanbanBoard() {
   useEffect(() => {
     const container = scrollRef.current
     if (!container) return
-    const todayIndex = weekDays.findIndex(d => isToday(d))
+    const todayIndex = allDays.findIndex(d => isToday(d))
     if (todayIndex === -1) return
     const colWidth = 220
     container.scrollLeft = Math.max(0, todayIndex * colWidth - container.clientWidth / 2 + colWidth / 2)
@@ -85,6 +92,10 @@ export default function KanbanBoard() {
     const dayTasks = tasks.filter(t => t.scheduledDate === dateStr && !t.isArchived && t.parentTaskId === null)
     const dayEvents = weekEvents.filter(e => e.startDatetime.slice(0, 10) === dateStr)
     return buildMergedItems(dayTasks, dayEvents)
+  }
+
+  function isInLoadedRange(dateStr: string) {
+    return allDateStrings.includes(dateStr)
   }
 
   // Calculate a float sortOrder to insert the active task at the over target's position
@@ -109,7 +120,7 @@ export default function KanbanBoard() {
   function resolveTargetDate(overId: string): string | null {
     if (/^\d{4}-\d{2}-\d{2}$/.test(overId)) return overId
     const overTask = tasks.find(t => t.id === overId)
-    if (overTask?.scheduledDate) return overTask.scheduledDate
+    if (overTask?.scheduledDate && isInLoadedRange(overTask.scheduledDate)) return overTask.scheduledDate
     const overEvent = weekEvents.find(e => e.id === overId)
     if (overEvent) return parseISO(overEvent.startDatetime).toISOString().slice(0, 10)
     return null
@@ -209,16 +220,26 @@ export default function KanbanBoard() {
       {/* Columns */}
       <DndContext sensors={sensors} onDragStart={e => setActiveCard(tasks.find(t => t.id === e.active.id) || null)} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => { setActiveCard(null); setDragOverDate(null) }}>
         <div ref={scrollRef} className="flex flex-1 overflow-x-auto overflow-y-hidden min-w-0">
-          {weekDays.map((day, i) => (
-            <DayColumn
-              key={dateStrings[i]}
-              date={day}
-              dateStr={dateStrings[i]}
-              tasks={tasks.filter(t => t.scheduledDate === dateStrings[i] && !t.isArchived && t.parentTaskId === null)}
-              events={weekEvents.filter(e => e.startDatetime.slice(0, 10) === dateStrings[i])}
-              loading={loading}
-              isDragTarget={dragOverDate === dateStrings[i]}
-            />
+          {weeks.map((wDays, wi) => (
+            <div key={wi} className="flex flex-shrink-0">
+              {wi > 0 && (
+                <div className="w-px flex-shrink-0 bg-stone-300 dark:bg-stone-700 self-stretch" />
+              )}
+              {wDays.map(day => {
+                const dateStr = formatDate(day)
+                return (
+                  <DayColumn
+                    key={dateStr}
+                    date={day}
+                    dateStr={dateStr}
+                    tasks={tasks.filter(t => t.scheduledDate === dateStr && !t.isArchived && t.parentTaskId === null)}
+                    events={weekEvents.filter(e => e.startDatetime.slice(0, 10) === dateStr)}
+                    loading={loading}
+                    isDragTarget={dragOverDate === dateStr}
+                  />
+                )
+              })}
+            </div>
           ))}
         </div>
         <DragOverlay>

@@ -128,7 +128,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
     @objc func handleGetURL(_ event: NSAppleEventDescriptor, withReplyEvent: NSAppleEventDescriptor) {
         guard let urlStr = event.paramDescriptor(forKeyword: 0x2D2D2D2D)?.stringValue, // keyDirectObject
               URL(string: urlStr)?.scheme == "dayflow" else { return }
-        showPanel()
+        // If launched cold via URL scheme, panel is set up in applicationDidFinishLaunching
+        // and shown automatically. Only call showPanel() if the app was already running.
+        if panel != nil { showPanel() }
     }
 
     // MARK: - App lifecycle
