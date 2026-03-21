@@ -249,15 +249,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
     // MARK: - Status bar menu
 
     func setupStatusBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        if let button = statusItem.button {
-            if let image = NSImage(systemSymbolName: "timer", accessibilityDescription: "Dayflow Timer") {
-                image.isTemplate = true
-                button.image = image
-            } else {
-                button.title = "⏱"
-            }
-        }
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem.button?.title = "⏱"
         statusItem.isVisible = true
         rebuildMenu()
     }
@@ -336,12 +329,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         webView.load(URLRequest(url: URL(string: "\(serverURL)/timer")!))
 
         panel.orderFrontRegardless()
-        NSApp.activate(ignoringOtherApps: true)
+        if #available(macOS 14.0, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
     }
 
     @objc func showPanel() {
         panel.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        if #available(macOS 14.0, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { false }

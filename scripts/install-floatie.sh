@@ -34,10 +34,16 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
     <string>com.dayflow.floatie</string>
     <key>CFBundleName</key>
     <string>DayflowFloatie</string>
-    <key>CFBundleVersion</key>
+    <key>CFBundleDisplayName</key>
+    <string>Dayflow Floatie</string>
+    <key>CFBundleShortVersionString</key>
     <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>
@@ -47,6 +53,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
 </dict>
 </plist>
 PLIST
+
+# PkgInfo is required for macOS to recognise the bundle as an app
+printf 'APPL????' > "$APP_BUNDLE/Contents/PkgInfo"
 
 echo "Launching $APP_NAME…"
 open "$APP_BUNDLE"
