@@ -238,54 +238,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
         }
     }
 
-    // MARK: - Open URL (focus existing browser tab or open fresh)
+    // MARK: - Open URL
 
     private func openInBrowser(_ urlString: String) {
-        guard let host = URL(string: urlString)?.host else {
-            if let url = URL(string: urlString) { NSWorkspace.shared.open(url) }
-            return
-        }
-        let script = """
-        set targetURL to "\(urlString)"
-        set targetHost to "\(host)"
-
-        try
-            tell application "Google Chrome"
-                repeat with w in windows
-                    repeat with t in tabs of w
-                        if URL of t contains targetHost then
-                            set active tab index of w to index of t
-                            set index of w to 1
-                            activate
-                            return
-                        end if
-                    end repeat
-                end repeat
-            end tell
-        end try
-
-        try
-            tell application "Safari"
-                repeat with w in windows
-                    repeat with t in tabs of w
-                        if URL of t contains targetHost then
-                            set current tab of w to t
-                            set index of w to 1
-                            activate
-                            return
-                        end if
-                    end repeat
-                end repeat
-            end tell
-        end try
-
-        open location targetURL
-        """
-        var error: NSDictionary?
-        NSAppleScript(source: script)?.executeAndReturnError(&error)
-        if error != nil, let url = URL(string: urlString) {
-            NSWorkspace.shared.open(url)
-        }
+        guard let url = URL(string: urlString) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     // MARK: - Floating panel
